@@ -13,9 +13,9 @@ const UserSchema = new Schema(
     email: {
       type: String,
       required: [true, "Email is required"],
-      unique: [true, "Email already registered!"],
+      unique: true,
       lowercase: true,
-      trime: true,
+      trim: true,
       validate: {
         validator: validator.isEmail,
         message: (props) => `${props.value} is not a valid email address!`,
@@ -41,6 +41,8 @@ const UserSchema = new Schema(
     },
     avatar: {
       type: String,
+      default:
+        "https://static.vecteezy.com/system/resources/previews/051/458/534/large_2x/profile-icon-user-profile-username-icon-free-vector.jpg",
     },
     isVerifiedEmail: {
       type: Boolean,
@@ -49,7 +51,7 @@ const UserSchema = new Schema(
     phone: {
       type: String,
       required: [true, "Phone number is required!"],
-      unique: [true, "Phone number already registered!"],
+      unique: true,
       validate: {
         validator: function (value) {
           return validator.isMobilePhone(value, "any", { strictMode: false });
@@ -63,6 +65,7 @@ const UserSchema = new Schema(
     },
     refreshToken: {
       type: String,
+      select: false,
     },
   },
   {
