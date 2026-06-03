@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { login } from "../api/auth";
 
-const LoginForm = ({ onClose, onSignUp }) => {
+const LoginForm = ({ onClose, onSignUp, forgot }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -23,11 +23,6 @@ const LoginForm = ({ onClose, onSignUp }) => {
     } catch (err) {
       console.error("Error in logging in..", err);
     }
-  };
-
-  const onForgotPassword = () => {
-    console.log("Sending Password Reset Link on you Email");
-    // Backend Call here
   };
 
   return (
@@ -69,7 +64,7 @@ const LoginForm = ({ onClose, onSignUp }) => {
           <div className="flex justify-end">
             <button
               type="button"
-              onClick={onForgotPassword}
+              onClick={forgot}
               className="text-sm text-blue-400 hover:text-blue-300"
             >
               Forgot Password?

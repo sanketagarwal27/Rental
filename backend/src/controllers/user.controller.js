@@ -3,6 +3,8 @@ import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import crypto from "crypto";
+import sendEmail from "../utils/sendEmail.js";
 
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
@@ -266,4 +268,51 @@ export const getUserDashboardData = asyncHandler(async (req, res) => {
       "User dashboard profile data fetched successfully!",
     ),
   );
+});
+
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw new ApiError(404, "User not Found");
+  }
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  user.passwordResetToken = resetToken;
+  user.passwordResetExpires = Date.now() + 15 * 60 * 1000;
+  await user.save({ validateBeforeSave: false });
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+  const message = `
+    Forgot your password?
+
+    Click this link to reset it:
+
+    ${resetUrl}
+
+    This link expires in 15 minutes.
+  `;
+  await sendEmail({
+    email: user.email,
+    subject: "Password Reset",
+    message: message,
+  });
+  res.status(200).json(new ApiResponse(200, {}, "Reset email sent"));
+});
+
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+  const { password } = req.body;
+  const user = await User.findOne({
+    passwordResetToken: token,
+    passwordResetExpires: {
+      $gt: Date.now(),
+    },
+  });
+  if (!user) throw new ApiError(400, "Invalid or expired token");
+  user.password = password;
+  user.passwordResetToken = undefined;
+  user.passwordResetExpires = undefined;
+  await user.save();
+  res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password Changed Successfully !"));
 });

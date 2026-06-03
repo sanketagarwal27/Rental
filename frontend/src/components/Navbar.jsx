@@ -1,15 +1,12 @@
 import { useState } from "react";
 import LoginForm from "./LoginForm";
 import SignupForm from "./SignupForm";
+import ForgotPassword from "./ForgotPassword";
 
 export default function Navbar() {
-  const [login, setLogin] = useState(false);
-  const [signUp, setSignUp] = useState(false);
-  const onCloseLogin = () => {
-    setLogin(false);
-  };
-  const onCloseSignUp = () => {
-    setSignUp(false);
+  const [modal, setModal] = useState(null);
+  const onClose = () => {
+    setModal(null);
   };
   return (
     <>
@@ -30,7 +27,7 @@ export default function Navbar() {
             <button
               className="text-zinc-200 hover:text-white"
               onClick={() => {
-                setLogin(true);
+                setModal("Login");
               }}
             >
               Login
@@ -39,7 +36,7 @@ export default function Navbar() {
             <button
               className="bg-blue-500 hover:bg-blue-600 px-5 py-2 rounded-md font-medium"
               onClick={() => {
-                setSignUp(true);
+                setModal("SignUp");
               }}
             >
               Sign Up
@@ -47,24 +44,28 @@ export default function Navbar() {
           </div>
         </div>
       </header>
-      {login && (
+      {modal === "Login" && (
         <LoginForm
-          onClose={onCloseLogin}
+          onClose={onClose}
           onSignUp={() => {
-            onCloseLogin();
-            setSignUp(true);
+            onClose();
+            setModal("SignUp");
+          }}
+          forgot={() => {
+            setModal("Forgot");
           }}
         />
       )}
-      {signUp && (
+      {modal === "SignUp" && (
         <SignupForm
-          onClose={onCloseSignUp}
+          onClose={onClose}
           onLogin={() => {
-            onCloseSignUp();
-            setLogin(true);
+            onClose();
+            setModal("Login");
           }}
         />
       )}
+      {modal === "Forgot" && <ForgotPassword onClose={onClose} />}
     </>
   );
 }
