@@ -50,7 +50,6 @@ const UserSchema = new Schema(
     },
     phone: {
       type: String,
-      required: [true, "Phone number is required!"],
       unique: true,
       validate: {
         validator: function (value) {
@@ -97,9 +96,8 @@ UserSchema.virtual("myEarnings", {
 });
 
 UserSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+  if (!this.isModified("password")) return;
   this.password = await bcrypt.hash(this.password, 10);
-  next();
 });
 
 UserSchema.methods.isPasswordCorrect = async function (password) {

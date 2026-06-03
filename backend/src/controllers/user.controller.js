@@ -3,7 +3,6 @@ import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
-import { useEffect } from "react";
 
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
@@ -29,9 +28,7 @@ const generateAccessAndRefreshTokens = async (userId) => {
 export const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone } = req.body;
   if (
-    [name, email, password, phone].some(
-      (field) => String(field || "").trim() === "",
-    )
+    [name, email, password].some((field) => String(field || "").trim() === "")
   )
     throw new ApiError(400, "All fields are required!");
   const existedUser = await User.findOne({ $or: [{ email }, { phone }] });
@@ -62,7 +59,9 @@ export const registerUser = asyncHandler(async (req, res) => {
 export const loginUser = asyncHandler(async (req, res) => {
   const { email, phone, password } = req.body;
   if (!email && !phone) throw new ApiError(400, "Email or Phone is required");
-  const user = await User.findOne({ $or: [{ email }, { phone }] });
+  const user = await User.findOne({ $or: [{ email }, { phone }] }).select(
+    "+password",
+  );
   if (!user) throw new ApiError(404, "User not found!");
   const isPasswordValid = user.isPasswordCorrect(password);
   if (!isPasswordValid) throw new ApiError(401, "Incorrect Password!");
