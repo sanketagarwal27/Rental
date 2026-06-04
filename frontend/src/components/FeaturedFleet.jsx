@@ -13,11 +13,6 @@ export default function FeaturedFleet() {
 
           <h2 className="text-4xl font-bold mt-2">The Featured Fleet</h2>
         </div>
-
-        <button className="flex items-center gap-2 text-blue-300">
-          View Entire Fleet
-          <ArrowRight size={18} />
-        </button>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">

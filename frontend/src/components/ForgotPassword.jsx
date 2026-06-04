@@ -1,29 +1,30 @@
 import { useState } from "react";
 import { forgotPassword } from "../api/auth";
-import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const ForgotPassword = ({ onClose }) => {
   const [email, setEmail] = useState("");
-  const [text, setText] = useState("Send Reset Link");
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
-      setText("");
-      setLoading(true);
       const response = await forgotPassword({ email });
-      console.log(response.message);
-      setLoading(false);
-      setText(response.message);
+      toast.success(response.message || "Reset link sent! Check your inbox.");
       setTimeout(() => {
         onClose();
       }, 2000);
     } catch (err) {
-      console.error(err);
+      const message =
+        err.response?.data?.message ||
+        "Could not send reset email. Please try again.";
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
+
   return (
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
@@ -34,7 +35,7 @@ const ForgotPassword = ({ onClose }) => {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white">Enter Your Email</h2>
+          <h2 className="text-2xl font-bold text-white">Reset Password</h2>
           <button
             onClick={onClose}
             className="text-zinc-400 hover:text-white text-xl"
@@ -42,6 +43,12 @@ const ForgotPassword = ({ onClose }) => {
             ✕
           </button>
         </div>
+
+        <p className="text-sm text-zinc-400 mb-6">
+          Enter your registered email address and we'll send you a link to reset
+          your password.
+        </p>
+
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <input
             type="email"
@@ -49,20 +56,15 @@ const ForgotPassword = ({ onClose }) => {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg bg-zinc-800 border border-zinc-700 text-white"
+            className="w-full px-4 py-3 rounded-lg bg-zinc-800 border border-zinc-700 text-white placeholder:text-zinc-500 outline-none focus:border-blue-500 transition"
           />
 
           <button
             type="submit"
             disabled={loading}
-            className="bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-semibold transition"
+            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed py-3 rounded-lg font-semibold transition cursor-pointer"
           >
-            {text}
-            {loading && (
-              <div className="flex justify-center">
-                <div className="w-8 h-8 border-4 border-zinc-700 border-t-blue-500 rounded-full animate-spin"></div>
-              </div>
-            )}
+            {loading ? "Sending…" : "Send Reset Link"}
           </button>
         </form>
       </div>

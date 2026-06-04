@@ -15,7 +15,7 @@ export default function Features() {
     {
       icon: <Gem />,
       title: "Diverse Fleet",
-      desc: "Luxury sedans, SUVs and motorcycles.",
+      desc: "Hatchbacks, sedans, SUVs, and motorcycles for every need.",
     },
   ];
 

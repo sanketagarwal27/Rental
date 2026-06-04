@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { resetPassword } from "../api/auth";
+import { toast } from "sonner";
 
 const ResetPassword = () => {
   const { token } = useParams();
@@ -10,17 +11,12 @@ const ResetPassword = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    setError("");
-    setMessage("");
-
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      toast.error("Passwords do not match");
       return;
     }
 
@@ -29,13 +25,15 @@ const ResetPassword = () => {
 
       const response = await resetPassword(token, { password });
 
-      setMessage(response.data.message || "Password reset successful");
+      toast.success(response.data.message || "Password reset successful");
 
       setTimeout(() => {
         navigate("/");
       }, 1000);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to reset password");
+      toast.error(err.response?.data?.message || "Failed to reset password", {
+        duration: 7000,
+      });
     } finally {
       setLoading(false);
     }
@@ -47,18 +45,6 @@ const ResetPassword = () => {
         <h1 className="text-3xl font-bold text-white mb-2">Reset Password</h1>
 
         <p className="text-zinc-400 mb-6">Enter your new password.</p>
-
-        {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20">
-            {error}
-          </div>
-        )}
-
-        {message && (
-          <div className="mb-4 p-3 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20">
-            {message}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <input

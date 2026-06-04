@@ -13,7 +13,7 @@ export default function Navbar() {
       <header className="fixed top-0 left-0 w-full z-50 bg-black/70 backdrop-blur-md border-b border-zinc-800">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <h1 className="font-bold text-3xl">
-            ELITE <span className="text-blue-400">DRIVE</span>
+            AUTO<span className="text-blue-400">RENT</span>
           </h1>
 
           <nav className="hidden md:flex gap-10 text-zinc-200 text-sm">

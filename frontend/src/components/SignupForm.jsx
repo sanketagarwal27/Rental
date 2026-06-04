@@ -1,29 +1,27 @@
 import { useState } from "react";
 import { register } from "../api/auth";
+import { toast } from "sonner";
 
 const SignupForm = ({ onClose, onLogin }) => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log({
-      name,
-      email,
-      password,
-    });
+    setLoading(true);
     try {
-      const payload = {
-        name: name,
-        email: email,
-        password: password,
-      };
-      const data = await register(payload);
-      console.log(data);
+      const payload = { name, email, password };
+      await register(payload);
+      toast.success("Account created! Please log in.");
       onClose();
     } catch (err) {
-      console.error(err);
+      const message =
+        err.response?.data?.message || "Sign up failed. Please try again.";
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -33,13 +31,17 @@ const SignupForm = ({ onClose, onLogin }) => {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md bg-zinc-900 rounded-2xl p-8 border border-zinc-700"
+        className="w-full max-w-md bg-zinc-900 rounded-2xl p-8 border border-zinc-700 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between mb-6">
           <h2 className="text-2xl font-bold">Sign Up</h2>
-
-          <button onClick={onClose}>✕</button>
+          <button
+            onClick={onClose}
+            className="text-zinc-400 hover:text-white text-xl"
+          >
+            ✕
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -49,7 +51,7 @@ const SignupForm = ({ onClose, onLogin }) => {
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="px-4 py-3 rounded-lg bg-zinc-800 border border-zinc-700"
+            className="px-4 py-3 rounded-lg bg-zinc-800 border border-zinc-700 text-white placeholder:text-zinc-500 outline-none focus:border-blue-500 transition"
           />
 
           <input
@@ -58,23 +60,24 @@ const SignupForm = ({ onClose, onLogin }) => {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="px-4 py-3 rounded-lg bg-zinc-800 border border-zinc-700"
+            className="px-4 py-3 rounded-lg bg-zinc-800 border border-zinc-700 text-white placeholder:text-zinc-500 outline-none focus:border-blue-500 transition"
           />
 
           <input
             type="password"
-            placeholder="Password"
+            placeholder="Create a Strong Password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="px-4 py-3 rounded-lg bg-zinc-800 border border-zinc-700"
+            className="px-4 py-3 rounded-lg bg-zinc-800 border border-zinc-700 text-white placeholder:text-zinc-500 outline-none focus:border-blue-500 transition"
           />
 
           <button
             type="submit"
-            className="bg-blue-500 hover:bg-blue-600 py-3 rounded-lg"
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed py-3 rounded-lg font-semibold transition cursor-pointer"
           >
-            Create Account
+            {loading ? "Creating account…" : "Create Account"}
           </button>
 
           <div className="text-center text-sm text-zinc-400">

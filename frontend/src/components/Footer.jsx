@@ -3,10 +3,10 @@ export default function Footer() {
     <footer className="border-t border-zinc-800">
       <div className="max-w-7xl mx-auto px-6 py-20 grid md:grid-cols-4 gap-12">
         <div>
-          <h3 className="font-bold text-2xl">ELITE DRIVE</h3>
+          <h3 className="font-bold text-2xl">AUTO<span className="text-blue-400">RENT</span></h3>
 
           <p className="mt-4 text-zinc-400">
-            Defining the future of luxury transportation.
+            Your go-to platform for renting any vehicle — from budget hatchbacks to premium SUVs.
           </p>
         </div>
 
@@ -14,9 +14,10 @@ export default function Footer() {
           <h4 className="font-semibold mb-4">Fleet</h4>
 
           <ul className="space-y-3 text-zinc-400">
-            <li>Luxury Sedans</li>
-            <li>Sport Motorcycles</li>
-            <li>Electric Performance</li>
+            <li>Hatchbacks & Sedans</li>
+            <li>SUVs & MPVs</li>
+            <li>Motorcycles</li>
+            <li>Electric Vehicles</li>
           </ul>
         </div>
 

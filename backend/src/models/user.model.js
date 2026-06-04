@@ -36,13 +36,11 @@ const UserSchema = new Schema(
           });
         },
         message:
-          "Password is not strong enough. It must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.",
+          "Not strong enough. It must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.",
       },
     },
     avatar: {
       type: String,
-      default:
-        "https://static.vecteezy.com/system/resources/previews/051/458/534/large_2x/profile-icon-user-profile-username-icon-free-vector.jpg",
     },
     isVerifiedEmail: {
       type: Boolean,
@@ -50,9 +48,9 @@ const UserSchema = new Schema(
     },
     phone: {
       type: String,
-      unique: true,
       validate: {
         validator: function (value) {
+          if (!value) return true; // phone is optional
           return validator.isMobilePhone(value, "any", { strictMode: false });
         },
         message: (props) => `${props.value} is not a valid phone number!`,
@@ -101,7 +99,7 @@ UserSchema.virtual("myEarnings", {
   foreignField: "provider",
 });
 
-UserSchema.pre("save", async function (next) {
+UserSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
   this.password = await bcrypt.hash(this.password, 10);
 });

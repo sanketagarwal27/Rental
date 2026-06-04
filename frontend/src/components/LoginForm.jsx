@@ -1,27 +1,29 @@
 import { useState } from "react";
-import { login } from "../api/auth";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { toast } from "sonner";
 
 const LoginForm = ({ onClose, onSignUp, forgot }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    console.log({
-      email,
-      password,
-    });
-    const payload = {
-      email: email,
-      password: password,
-    };
+    setLoading(true);
     try {
-      const response = await login(payload);
-      console.log(response);
+      await login({ email, password });
+      toast.success("Logged in successfully!", { duration: 500 });
       onClose();
+      navigate("/home");
     } catch (err) {
-      console.error("Error in logging in..", err);
+      const message =
+        err.response?.data?.message || "Invalid credentials. Please try again.";
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -36,7 +38,6 @@ const LoginForm = ({ onClose, onSignUp, forgot }) => {
       >
         <div className="flex justify-between mb-6">
           <h2 className="text-2xl font-bold text-white">Login</h2>
-
           <button
             onClick={onClose}
             className="text-zinc-400 hover:text-white text-xl"
@@ -44,6 +45,7 @@ const LoginForm = ({ onClose, onSignUp, forgot }) => {
             ✕
           </button>
         </div>
+
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <input
             type="email"
@@ -51,7 +53,7 @@ const LoginForm = ({ onClose, onSignUp, forgot }) => {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg bg-zinc-800 border border-zinc-700 text-white"
+            className="w-full px-4 py-3 rounded-lg bg-zinc-800 border border-zinc-700 text-white placeholder:text-zinc-500 outline-none focus:border-blue-500 transition"
           />
           <input
             type="password"
@@ -59,7 +61,7 @@ const LoginForm = ({ onClose, onSignUp, forgot }) => {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg bg-zinc-800 border border-zinc-700 text-white"
+            className="w-full px-4 py-3 rounded-lg bg-zinc-800 border border-zinc-700 text-white placeholder:text-zinc-500 outline-none focus:border-blue-500 transition"
           />
           <div className="flex justify-end">
             <button
@@ -72,13 +74,15 @@ const LoginForm = ({ onClose, onSignUp, forgot }) => {
           </div>
           <button
             type="submit"
-            className="bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-semibold transition"
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed py-3 rounded-lg font-semibold transition cursor-pointer"
           >
-            Login
+            {loading ? "Logging in…" : "Login"}
           </button>
         </form>
+
         <div className="text-center text-sm text-zinc-400 mt-4">
-          Join the Elite Club{" -> "}
+          New here?{" "}
           <button
             type="button"
             onClick={onSignUp}

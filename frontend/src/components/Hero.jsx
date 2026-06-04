@@ -15,7 +15,7 @@ export default function Hero() {
       <div className="absolute inset-0 bg-black/65"></div>
 
       {/* Gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-[#121212]"></div>
+      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-[#030303]"></div>
 
       <div className="relative z-20 w-full max-w-7xl mx-auto px-6">
         <div className="max-w-3xl">
@@ -25,9 +25,9 @@ export default function Hero() {
           </h1>
 
           <p className="mt-6 text-zinc-300 text-lg max-w-xl leading-relaxed">
-            Premium rentals for those who demand more. From two wheels to
-            executive sedans, experience unmatched performance with our curated
-            fleet.
+            Rent any vehicle for any occasion — from everyday hatchbacks and
+            family SUVs to motorcycles and electric cars. Easy booking, fair
+            prices, no hassle.
           </p>
 
           <div className="mt-10">

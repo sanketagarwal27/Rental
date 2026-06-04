@@ -23,4 +23,10 @@ router.route("/login").post(loginUser);
 router.route("/forgot-password").post(forgotPasswordLimiter, forgotPassword);
 router.route("/reset-password/:token").post(resetPassword);
 
+// Secured routes
+router.route("/logout").post(verifyJwt, logoutUser);
+router.route("/refresh-token").post(refreshAccessToken);
+router.route("/current-user").get(verifyJwt, getCurrentUser);
+router.route("/change-password").post(verifyJwt, changeCurrentPassword);
+
 export default router;

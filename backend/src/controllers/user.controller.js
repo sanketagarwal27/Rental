@@ -28,27 +28,20 @@ const generateAccessAndRefreshTokens = async (userId) => {
 };
 
 export const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, password, phone } = req.body;
+  const { name, email, password } = req.body;
   if (
     [name, email, password].some((field) => String(field || "").trim() === "")
   )
     throw new ApiError(400, "All fields are required!");
-  const existedUser = await User.findOne({ $or: [{ email }, { phone }] });
-  if (existedUser)
-    throw new ApiError(409, "User with this email or phone already exists");
-  const avatar_local_path = req?.files?.avatar?.[0]?.path;
-  let avatar = {
-    url: "https://static.vecteezy.com/system/resources/previews/051/458/534/large_2x/profile-icon-user-profile-username-icon-free-vector.jpg",
-  };
-  if (avatar_local_path) {
-    avatar = await uploadOnCloudinary(avatar_local_path);
+
+  const existedUser = await User.findOne({ email });
+  if (existedUser) {
+    throw new ApiError(409, "An account with this email already exists");
   }
   const user = await User.create({
     name,
     email,
     password,
-    avatar: avatar.url,
-    phone,
   });
   const createdUser = await User.findById(user._id);
   if (!createdUser)
@@ -59,26 +52,34 @@ export const registerUser = asyncHandler(async (req, res) => {
 });
 
 export const loginUser = asyncHandler(async (req, res) => {
-  const { email, phone, password } = req.body;
-  if (!email && !phone) throw new ApiError(400, "Email or Phone is required");
-  const user = await User.findOne({ $or: [{ email }, { phone }] }).select(
-    "+password",
-  );
-  if (!user) throw new ApiError(404, "User not found!");
-  const isPasswordValid = user.isPasswordCorrect(password);
-  if (!isPasswordValid) throw new ApiError(401, "Incorrect Password!");
+  const { email, password } = req.body;
+  if (!email) throw new ApiError(400, "Email is required");
+
+  const user = await User.findOne({ email }).select("+password");
+  if (!user) throw new ApiError(404, "No account found with this email.");
+  const isPasswordValid = await user.isPasswordCorrect(password);
+  if (!isPasswordValid)
+    throw new ApiError(401, "Incorrect password. Please try again.");
   const { refreshToken, accessToken } = await generateAccessAndRefreshTokens(
     user._id,
   );
   const loggedInUser = await User.findById(user._id);
-  const options = {
+  const accessTokenOptions = {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 1 * 24 * 60 * 60 * 1000, // 1 day
+  };
+  const refreshTokenOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
   };
   return res
     .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
+    .cookie("accessToken", accessToken, accessTokenOptions)
+    .cookie("refreshToken", refreshToken, refreshTokenOptions)
     .json(new ApiResponse(200, loggedInUser, "User logged in successfully!"));
 });
 
@@ -97,7 +98,8 @@ export const logoutUser = asyncHandler(async (req, res) => {
 
   const options = {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
   };
 
   return res
@@ -129,16 +131,24 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
     if (user?.refreshToken !== incomingRefreshToken) {
       throw new ApiError(401, "Invalid Refresh Token !");
     }
-    const options = {
+    const accessTokenOptions = {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 1 * 24 * 60 * 60 * 1000, // 1 day
+    };
+    const refreshTokenOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
     };
     const { accessToken, newRefreshToken } =
       await generateAccessAndRefreshTokens(user._id);
     return res
       .status(200)
-      .cookie("accessToken", accessToken, options)
-      .cookie("refreshToken", newRefreshToken, options)
+      .cookie("accessToken", accessToken, accessTokenOptions)
+      .cookie("refreshToken", newRefreshToken, refreshTokenOptions)
       .json(
         new ApiResponse(
           200,
@@ -274,11 +284,11 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
   const user = await User.findOne({ email });
   if (!user) {
-    throw new ApiError(404, "User not Found");
+    throw new ApiError(404, "No account exists with this email address.");
   }
   const resetToken = crypto.randomBytes(32).toString("hex");
   user.passwordResetToken = resetToken;
-  user.passwordResetExpires = Date.now() + 15 * 60 * 1000;
+  user.passwordResetExpires = Date.now() + 5 * 60 * 1000;
   await user.save({ validateBeforeSave: false });
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
   const message = `
@@ -288,7 +298,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
 
     ${resetUrl}
 
-    This link expires in 15 minutes.
+    This link expires in 5 minutes.
   `;
   await sendEmail({
     email: user.email,
