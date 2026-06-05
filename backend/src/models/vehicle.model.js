@@ -99,7 +99,7 @@ const VehicleSchema = new Schema(
     odometer: { type: Number },
     status: {
       type: String,
-      enum: ["Approved", "Draft", "Pending Approval", "Rejected"],
+      enum: ["Approved", "Draft", "Pending", "Rejected"],
       default: "Draft",
     },
     location: {

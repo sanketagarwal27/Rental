@@ -8,10 +8,12 @@ html {
 
 body {
   margin: 0;
-  background: #030303;
-  color: white;
+  /* Premium Dark theme: Indigo-tinted slate gradient instead of pure pitch black */
+  background: radial-gradient(circle at 50% 0%, #0e1220 0%, #080a11 50%, #030408 100%);
+  color: #f1f3f9;
   font-family: "Inter", sans-serif;
   color-scheme: dark;
+  min-height: 100vh;
 }
 
 h1,

@@ -70,6 +70,18 @@ const UserSchema = new Schema(
     passwordResetExpires: {
       type: Date,
     },
+    emailVerificationToken: {
+      type: String,
+    },
+    emailVerificationExpires: {
+      type: Date,
+    },
+    phoneOtp: {
+      type: String,
+    },
+    phoneOtpExpires: {
+      type: Date,
+    },
   },
   {
     timestamps: true,

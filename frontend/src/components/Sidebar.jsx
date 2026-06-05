@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { toast } from "sonner";
 import {
   LayoutDashboard,
   Car,
@@ -27,9 +28,12 @@ const Sidebar = () => {
 
   const navItems = [
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { to: "/dashboard/messages", label: "Messages", icon: MessageSquare },
-    { to: "/dashboard/profile", label: "Profile", icon: User },
+    { to: "/list-vehicle", label: "List Vehicle", icon: PlusCircle },
   ];
+  navItems.push(
+    { to: "/dashboard/messages", label: "Messages", icon: MessageSquare },
+    { to: "/profile", label: "Profile", icon: User },
+  );
 
   // Helper to extract initials for avatar fallback
   const getInitials = (name) => {
@@ -69,6 +73,18 @@ const Sidebar = () => {
                 key={item.to}
                 to={item.to}
                 end={item.to === "/dashboard"}
+                onClick={(e) => {
+                  if (
+                    item.to === "/list-vehicle" &&
+                    (!user?.isVerifiedEmail || !user?.isVerifiedPhone)
+                  ) {
+                    e.preventDefault();
+                    toast.error(
+                      "Verification Required: Your email and phone number must be verified in your Profile before you can host a vehicle.",
+                      { duration: 5000 },
+                    );
+                  }
+                }}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative font-medium text-sm ${
                     isActive
@@ -101,7 +117,10 @@ const Sidebar = () => {
       {/* User Session Profile & Logout */}
       <div className="p-4 border-t border-zinc-900 bg-zinc-950 flex flex-col gap-3">
         {user && (
-          <div className="flex items-center gap-3 px-2 py-1.5">
+          <div
+            className="flex items-center gap-3 px-2 py-1.5 cursor-pointer"
+            onClick={() => navigate("/profile")}
+          >
             <div className="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-sm font-semibold text-zinc-300 uppercase shadow-inner">
               {user.avatar ? (
                 <img

@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "../context/LocationContext";
+import { useAuth } from "../context/AuthContext";
+import { toast } from "sonner";
 import { fetchNearbyVehicles } from "../api/vehicle";
 import {
   Car,
@@ -23,7 +25,24 @@ const fuelColors = {
 };
 
 const VehicleCard = ({ vehicle }) => {
+  const { user } = useAuth();
   const fuelColor = fuelColors[vehicle.fuelType] || "text-zinc-400";
+
+  const handleBooking = () => {
+    if (!user) {
+      toast.error("Please login to proceed with booking");
+      return;
+    }
+    if (!user.isVerifiedEmail || !user.isVerifiedPhone) {
+      toast.error(
+        "Verification Required: Your email and phone number must be verified in your Profile before booking.",
+        { duration: 5000 },
+      );
+      return;
+    }
+    console.log("Booking...");
+  };
+
   return (
     <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl overflow-hidden hover:border-zinc-700 hover:bg-zinc-900/60 transition-all duration-200 group flex flex-col">
       {/* Image */}
@@ -63,7 +82,9 @@ const VehicleCard = ({ vehicle }) => {
 
         {/* Meta chips */}
         <div className="flex flex-wrap gap-1.5">
-          <span className={`flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-800/60 border border-zinc-700/40 ${fuelColor}`}>
+          <span
+            className={`flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-800/60 border border-zinc-700/40 ${fuelColor}`}
+          >
             <Fuel className="w-3 h-3" /> {vehicle.fuelType}
           </span>
           <span className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-800/60 border border-zinc-700/40 text-zinc-400">
@@ -88,7 +109,10 @@ const VehicleCard = ({ vehicle }) => {
             </span>
             <span className="text-xs text-zinc-500"> /day</span>
           </div>
-          <button className="flex items-center gap-1 text-xs font-medium text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 px-3 py-1.5 rounded-lg transition cursor-pointer">
+          <button
+            onClick={handleBooking}
+            className="flex items-center gap-1 text-xs font-medium text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 px-3 py-1.5 rounded-lg transition cursor-pointer"
+          >
             Book <ChevronRight className="w-3 h-3" />
           </button>
         </div>
@@ -99,7 +123,8 @@ const VehicleCard = ({ vehicle }) => {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const NearbyVehicles = () => {
-  const { coords, locationStatus, locationError, requestLocation } = useLocation();
+  const { coords, locationStatus, locationError, requestLocation } =
+    useLocation();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -114,13 +139,20 @@ const NearbyVehicles = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetchNearbyVehicles(coords.lat, coords.lng, radius, page);
+        const res = await fetchNearbyVehicles(
+          coords.lat,
+          coords.lng,
+          radius,
+          page,
+        );
         const data = res.data?.data;
         setVehicles(data?.vehicles || []);
         setTotalPages(data?.totalPages || 1);
         setTotal(data?.total || 0);
       } catch (err) {
-        setError(err.response?.data?.message || "Failed to fetch nearby vehicles.");
+        setError(
+          err.response?.data?.message || "Failed to fetch nearby vehicles.",
+        );
       } finally {
         setLoading(false);
       }
@@ -145,9 +177,12 @@ const NearbyVehicles = () => {
           <WifiOff className="w-8 h-8 text-red-400" />
         </div>
         <div>
-          <h3 className="font-semibold text-zinc-200">Location Access Required</h3>
+          <h3 className="font-semibold text-zinc-200">
+            Location Access Required
+          </h3>
           <p className="text-sm text-zinc-500 mt-1 max-w-xs">
-            {locationError || "Please allow location access to see nearby vehicles."}
+            {locationError ||
+              "Please allow location access to see nearby vehicles."}
           </p>
         </div>
         <button
@@ -176,9 +211,7 @@ const NearbyVehicles = () => {
             )}
           </h3>
           {coords && (
-            <p className="text-xs text-zinc-600 mt-0.5">
-              Within {radius} km · {coords.lat.toFixed(4)}°N, {coords.lng.toFixed(4)}°E
-            </p>
+            <p className="text-xs text-zinc-600 mt-0.5">Within {radius} km</p>
           )}
         </div>
 
@@ -189,7 +222,10 @@ const NearbyVehicles = () => {
           {[10, 20, 30, 50].map((r) => (
             <button
               key={r}
-              onClick={() => { setRadius(r); setPage(1); }}
+              onClick={() => {
+                setRadius(r);
+                setPage(1);
+              }}
               className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition cursor-pointer ${
                 radius === r
                   ? "bg-blue-600 border-blue-500 text-white"
@@ -206,7 +242,10 @@ const NearbyVehicles = () => {
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="bg-zinc-900/30 border border-zinc-900 rounded-2xl overflow-hidden animate-pulse">
+            <div
+              key={i}
+              className="bg-zinc-900/30 border border-zinc-900 rounded-2xl overflow-hidden animate-pulse"
+            >
               <div className="h-44 bg-zinc-800/60" />
               <div className="p-4 space-y-3">
                 <div className="h-3 bg-zinc-800 rounded w-3/4" />
@@ -240,8 +279,12 @@ const NearbyVehicles = () => {
             <Car className="w-10 h-10 text-zinc-600" />
           </div>
           <div>
-            <h4 className="font-semibold text-zinc-300">No vehicles found nearby</h4>
-            <p className="text-sm text-zinc-500 mt-1">Try increasing the radius or check back later.</p>
+            <h4 className="font-semibold text-zinc-300">
+              No vehicles found nearby
+            </h4>
+            <p className="text-sm text-zinc-500 mt-1">
+              Try increasing the radius or check back later.
+            </p>
           </div>
         </div>
       )}

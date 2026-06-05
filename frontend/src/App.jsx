@@ -3,6 +3,10 @@ import { Routes, Route } from "react-router-dom";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import { ProtectedRoute, PublicRoute } from "./components/RouteGuards";
+import Profile from "./pages/Profile";
+import VerifyEmail from "./pages/VerifyEmail";
+import ListVehicle from "./pages/ListVehicle";
+import MyVehicles from "./pages/MyVehicles";
 function App() {
   return (
     <>
@@ -19,6 +23,7 @@ function App() {
 
         {/* Always public */}
         <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <Route path="/verify-email/:token" element={<VerifyEmail />} />
 
         {/* Protected: redirect to / if not logged in */}
         <Route
@@ -26,6 +31,30 @@ function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/list-vehicle"
+          element={
+            <ProtectedRoute>
+              <ListVehicle />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/my-vehicles"
+          element={
+            <ProtectedRoute>
+              <MyVehicles />
             </ProtectedRoute>
           }
         />

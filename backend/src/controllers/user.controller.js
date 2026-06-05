@@ -1,4 +1,6 @@
 import { User } from "../models/user.model.js";
+import { Vehicle } from "../models/vehicle.model.js";
+import { Booking } from "../models/booking.model.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
@@ -215,6 +217,145 @@ export const updateUserAvatar = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, user, "Avatar Updated Successfully !"));
+});
+
+export const updateUserProfile = asyncHandler(async (req, res) => {
+  const { name, phone } = req.body;
+
+  const updateFields = {};
+  if (name && name.trim()) updateFields.name = name.trim();
+  if (phone !== undefined) {
+    // Allow clearing phone or setting a new one
+    // If phone changed, reset verification
+    const currentUser = await User.findById(req.user?._id);
+    if (currentUser.phone !== phone) {
+      updateFields.isVerifiedPhone = false;
+    }
+    updateFields.phone = phone;
+  }
+
+  if (Object.keys(updateFields).length === 0) {
+    throw new ApiError(400, "No fields to update");
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    { $set: updateFields },
+    { new: true, runValidators: true },
+  );
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Profile updated successfully!"));
+});
+
+export const sendEmailVerification = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user?._id);
+
+  if (!user) throw new ApiError(404, "User not found");
+  if (user.isVerifiedEmail) {
+    throw new ApiError(400, "Email is already verified");
+  }
+
+  const verifyToken = crypto.randomBytes(32).toString("hex");
+  user.emailVerificationToken = verifyToken;
+  user.emailVerificationExpires = Date.now() + 15 * 60 * 1000; // 15 minutes
+  await user.save({ validateBeforeSave: false });
+
+  const verifyUrl = `${process.env.FRONTEND_URL}/verify-email/${verifyToken}`;
+  const message = `
+    Welcome to AutoRent!
+
+    Please verify your email address by clicking the link below:
+
+    ${verifyUrl}
+
+    This link expires in 15 minutes.
+
+    If you did not request this, please ignore this email.
+  `;
+
+  await sendEmail({
+    email: user.email,
+    subject: "Verify Your Email - AutoRent",
+    message,
+  });
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Verification email sent successfully!"));
+});
+
+export const verifyEmail = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+
+  const user = await User.findOne({
+    emailVerificationToken: token,
+    emailVerificationExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    throw new ApiError(400, "Invalid or expired verification link");
+  }
+
+  user.isVerifiedEmail = true;
+  user.emailVerificationToken = undefined;
+  user.emailVerificationExpires = undefined;
+  await user.save({ validateBeforeSave: false });
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Email verified successfully!"));
+});
+
+export const sendPhoneOtp = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user?._id);
+  if (!user) throw new ApiError(404, "User not found");
+  if (!user.phone) {
+    throw new ApiError(400, "Please add a phone number first before verifying");
+  }
+  if (user.isVerifiedPhone) {
+    throw new ApiError(400, "Phone number is already verified");
+  }
+
+  // Generate a random 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  user.phoneOtp = otp;
+  user.phoneOtpExpires = Date.now() + 5 * 60 * 1000; // 5 mins validity
+  await user.save({ validateBeforeSave: false });
+
+  // Dev-mode action: Log OTP directly to the console
+  console.log("=================================================");
+  console.log(`[DEV MODE] SMS OTP for User ${user.name} (${user.phone}): ${otp}`);
+  console.log("=================================================");
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, {}, "OTP sent successfully! (Logged to console in dev)"));
+});
+
+export const verifyPhoneOtp = asyncHandler(async (req, res) => {
+  const { otp } = req.body;
+  if (!otp) throw new ApiError(400, "OTP is required");
+
+  const user = await User.findOne({
+    _id: req.user?._id,
+    phoneOtp: otp,
+    phoneOtpExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    throw new ApiError(400, "Invalid or expired OTP");
+  }
+
+  user.isVerifiedPhone = true;
+  user.phoneOtp = undefined;
+  user.phoneOtpExpires = undefined;
+  await user.save({ validateBeforeSave: false });
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, user, "Phone number verified successfully!"));
 });
 
 export const getUserDashboardData = asyncHandler(async (req, res) => {

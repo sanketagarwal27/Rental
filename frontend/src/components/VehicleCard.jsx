@@ -4,8 +4,15 @@ import { useAuth } from "../context/AuthContext";
 export default function VehicleCard({ title, image, price, tag, specs = [] }) {
   const { user } = useAuth();
   const handleBooking = () => {
-    if (!user) toast.error("Please login to proceed with booking");
-    else console.log("Booking...");
+    if (!user) {
+      toast.error("Please login to proceed with booking");
+      return;
+    }
+    if (!user.isVerifiedEmail || !user.isVerifiedPhone) {
+      toast.error("Verification Required: Your email and phone number must be verified in your Profile before booking.", { duration: 5000 });
+      return;
+    }
+    console.log("Booking...");
   };
   return (
     <div className="bg-zinc-950/40 backdrop-blur-md border border-zinc-900 rounded-2xl overflow-hidden hover:border-blue-500/50 hover:shadow-2xl hover:shadow-blue-500/5 transition-all duration-300 group flex flex-col justify-between">

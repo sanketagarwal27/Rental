@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import NearbyVehicles from "../components/NearbyVehicles";
 import { useAuth } from "../context/AuthContext";
+import { getUserDashboardData } from "../api/profile";
 import {
   Car,
   Calendar,
@@ -22,38 +23,54 @@ import {
   CheckCircle2,
   AlertCircle,
   Search,
+  Loader2,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
+// Helper to format currency in INR (₹)
+const formatINR = (val) => {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(val || 0);
+};
 
 // ─── Renter View ────────────────────────────────────────────────────────────
-const RenterView = ({ user }) => {
-  //Mock Data
+const RenterView = ({ user, vehiclesRented }) => {
+  const navigate = useNavigate();
+  const totalSpent = vehiclesRented.reduce(
+    (sum, trip) => sum + (trip.totalPrice || 0),
+    0,
+  );
+
   const stats = [
     {
-      title: "Total Trips",
-      value: "14",
-      sub: "+3 this month",
+      title: "Total Trips Booked",
+      value: vehiclesRented.length,
+      sub: "All time rentals",
       icon: Calendar,
       accent: "blue",
     },
     {
       title: "Active Rentals",
-      value: "2",
-      sub: "Next return: Sat",
+      value: vehiclesRented.filter((t) => t.status === "Confirmed").length,
+      sub: "Upcoming or ongoing",
       icon: Car,
       accent: "amber",
     },
     {
       title: "Total Spent",
-      value: "₹52,400",
-      sub: "Lifetime",
+      value: formatINR(totalSpent),
+      sub: "Lifetime spend",
       icon: DollarSign,
       accent: "emerald",
     },
     {
-      title: "Avg. Rating Given",
-      value: "4.8",
-      sub: "Across all trips",
-      icon: Star,
+      title: "Completed Trips",
+      value: vehiclesRented.filter((t) => t.status === "Completed").length,
+      sub: "Returned safely",
+      icon: CheckCircle2,
       accent: "indigo",
     },
   ];
@@ -64,36 +81,6 @@ const RenterView = ({ user }) => {
     emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     indigo: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
   };
-
-  const recentBookings = [
-    {
-      id: "BK-8902",
-      vehicle: "Honda City (Sedan)",
-      dates: "Jun 12 – Jun 15, 2026",
-      location: "Mumbai, MH",
-      status: "Confirmed",
-      amount: "₹5,400",
-      statusClass: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25",
-    },
-    {
-      id: "BK-8741",
-      vehicle: "Maruti Swift (Hatchback)",
-      dates: "May 28 – May 30, 2026",
-      location: "Pune, MH",
-      status: "Completed",
-      amount: "₹2,700",
-      statusClass: "text-zinc-400 bg-zinc-800/80 border-zinc-700/50",
-    },
-    {
-      id: "BK-8600",
-      vehicle: "Royal Enfield Classic 350",
-      dates: "May 10 – May 11, 2026",
-      location: "Goa",
-      status: "Completed",
-      amount: "₹1,800",
-      statusClass: "text-zinc-400 bg-zinc-800/80 border-zinc-700/50",
-    },
-  ];
 
   return (
     <div className="space-y-8">
@@ -111,11 +98,14 @@ const RenterView = ({ user }) => {
             trip and every budget.
           </p>
           <div className="pt-2 flex gap-3">
-            <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-600/20 cursor-pointer">
+            <button
+              onClick={() => {
+                const searchEl = document.getElementById("search-section");
+                searchEl?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-600/20 cursor-pointer"
+            >
               <Search className="w-4 h-4" /> Find a Vehicle
-            </button>
-            <button className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-medium text-sm px-4 py-2.5 rounded-xl transition-all cursor-pointer">
-              <Clock className="w-4 h-4" /> My Bookings
             </button>
           </div>
         </div>
@@ -156,63 +146,97 @@ const RenterView = ({ user }) => {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-base text-zinc-200">
-              Recent Bookings
+              My Rental Trips
             </h3>
-            <button className="text-xs text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1 cursor-pointer">
-              View All <ChevronRight className="w-3 h-3" />
-            </button>
           </div>
-          <div className="border border-zinc-900 bg-zinc-900/10 rounded-2xl overflow-hidden divide-y divide-zinc-900">
-            {recentBookings.map((bk, i) => (
-              <div
-                key={i}
-                className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-zinc-900/30 transition"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 shrink-0">
-                    <Car className="w-5 h-5" />
+          {vehiclesRented.length === 0 ? (
+            <div className="border border-dashed border-zinc-800 rounded-2xl p-8 text-center text-zinc-500 text-sm">
+              <Car className="w-8 h-8 text-zinc-650 mx-auto mb-2" />
+              You haven't booked any rental trips yet.
+            </div>
+          ) : (
+            <div className="border border-zinc-900 bg-zinc-900/10 rounded-2xl overflow-hidden divide-y divide-zinc-900">
+              {vehiclesRented.map((bk, i) => (
+                <div
+                  key={i}
+                  className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-zinc-900/30 transition"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 shrink-0">
+                      <Car className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-sm text-zinc-200">
+                        {bk.vehicle?.brand} {bk.vehicle?.model}
+                      </h4>
+                      <p className="text-xs text-zinc-500 mt-0.5 flex items-center gap-1">
+                        <MapPin className="w-3 h-3" /> {bk.vehicle?.address} ·{" "}
+                        {new Date(bk.startDate).toLocaleDateString()} to{" "}
+                        {new Date(bk.endDate).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-semibold text-sm text-zinc-200">
-                      {bk.vehicle}
-                    </h4>
-                    <p className="text-xs text-zinc-500 mt-0.5 flex items-center gap-1">
-                      <MapPin className="w-3 h-3" /> {bk.location} · {bk.dates}
-                    </p>
+                  <div className="flex items-center gap-4 sm:gap-6 justify-between sm:justify-end">
+                    <span className="font-semibold text-sm text-zinc-200">
+                      {formatINR(bk.totalPrice)}
+                    </span>
+                    <span
+                      className={`text-[11px] font-medium font-mono px-2.5 py-1 rounded-full border ${
+                        bk.status === "Confirmed"
+                          ? "text-blue-400 bg-blue-500/10 border-blue-500/25"
+                          : bk.status === "Completed"
+                            ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/25"
+                            : "text-zinc-400 bg-zinc-800/80 border-zinc-700/50"
+                      }`}
+                    >
+                      {bk.status}
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 sm:gap-6 justify-between sm:justify-end">
-                  <span className="font-semibold text-sm text-zinc-200">
-                    {bk.amount}
-                  </span>
-                  <span
-                    className={`text-[11px] font-medium font-mono px-2.5 py-1 rounded-full border ${bk.statusClass}`}
-                  >
-                    {bk.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Quick Actions */}
         <div className="space-y-4">
-          <h3 className="font-semibold text-base text-zinc-200">Quick Actions</h3>
+          <h3 className="font-semibold text-base text-zinc-200">
+            Quick Actions
+          </h3>
           <div className="bg-zinc-900/20 border border-zinc-900 rounded-2xl p-5 space-y-3">
             {[
-              { icon: Calendar, label: "My Bookings", sub: "Upcoming & past trips", color: "text-amber-400" },
-              { icon: Star, label: "Leave a Review", sub: "Rate your last trip", color: "text-indigo-400" },
-              { icon: Zap, label: "Browse EVs", sub: "Eco-friendly options", color: "text-emerald-400" },
+              {
+                icon: Calendar,
+                label: "Browse Vehicles",
+                sub: "Find cars or motorbikes near you",
+                color: "text-amber-400",
+                onClick: () => {
+                  const searchEl = document.getElementById("search-section");
+                  searchEl?.scrollIntoView({ behavior: "smooth" });
+                },
+              },
+              {
+                icon: Star,
+                label: "Renting Support",
+                sub: "Get help with active trips",
+                color: "text-indigo-400",
+                onClick: () => navigate("/dashboard/messages"),
+              },
             ].map((action, i) => {
               const Icon = action.icon;
               return (
-                <button key={i} className="w-full flex items-center gap-3 p-3 rounded-xl bg-zinc-900/40 border border-zinc-900 hover:border-zinc-800 hover:bg-zinc-900/80 transition cursor-pointer text-left">
+                <button
+                  key={i}
+                  onClick={action.onClick}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-zinc-900/40 border border-zinc-900 hover:border-zinc-800 hover:bg-zinc-900/80 transition cursor-pointer text-left"
+                >
                   <div className={`p-2 rounded-lg bg-zinc-900 ${action.color}`}>
                     <Icon className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-zinc-200">{action.label}</p>
+                    <p className="text-sm font-medium text-zinc-200">
+                      {action.label}
+                    </p>
                     <p className="text-[11px] text-zinc-500">{action.sub}</p>
                   </div>
                   <ChevronRight className="w-4 h-4 text-zinc-600 ml-auto" />
@@ -224,7 +248,7 @@ const RenterView = ({ user }) => {
       </div>
 
       {/* Nearby Vehicles — full width */}
-      <div className="border-t border-zinc-900 pt-8">
+      <div id="search-section" className="border-t border-zinc-900 pt-8">
         <NearbyVehicles />
       </div>
     </div>
@@ -232,35 +256,37 @@ const RenterView = ({ user }) => {
 };
 
 // ─── Host View ───────────────────────────────────────────────────────────────
-const HostView = ({ user }) => {
-  //Mock Data
+const HostView = ({ user, vehiclesHosted, financials }) => {
+  const navigate = useNavigate();
+
   const stats = [
     {
       title: "Listed Vehicles",
-      value: "3",
-      sub: "2 active, 1 paused",
+      value: vehiclesHosted.length,
+      sub: `${vehiclesHosted.filter((v) => v.status === "Approved").length} approved listing(s)`,
       icon: Car,
       accent: "blue",
     },
     {
-      title: "Total Bookings",
-      value: "28",
-      sub: "+5 this month",
+      title: "Total Bookings Received",
+      value: financials.totalRentedOutCount || 0,
+      sub: "Total guest bookings",
       icon: Users,
       accent: "indigo",
     },
     {
       title: "Total Earned",
-      value: "₹84,200",
-      sub: "Lifetime earnings",
+      value: formatINR(financials.totalEarned),
+      sub: "Credited earnings",
       icon: DollarSign,
       accent: "emerald",
     },
     {
-      title: "Avg. Host Rating",
-      value: "4.9",
-      sub: "Out of 5.0",
-      icon: Star,
+      title: "Pending",
+      value: vehiclesHosted.filter((v) => v.status === "Pending")
+        .length,
+      sub: "Awaiting review",
+      icon: Clock,
       accent: "amber",
     },
   ];
@@ -272,47 +298,18 @@ const HostView = ({ user }) => {
     indigo: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
   };
 
-  const myListings = [
-    {
-      name: "Hyundai i20 (2022)",
-      type: "Hatchback · Petrol",
-      status: "Active",
-      rate: "₹1,200/day",
-      bookings: 14,
-      statusClass: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25",
-    },
-    {
-      name: "Toyota Fortuner (2021)",
-      type: "SUV · Diesel",
-      status: "Active",
-      rate: "₹4,500/day",
-      bookings: 9,
-      statusClass: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25",
-    },
-    {
-      name: "Honda Activa 6G",
-      type: "Scooter · Petrol",
-      status: "Paused",
-      rate: "₹400/day",
-      bookings: 5,
-      statusClass: "text-amber-400 bg-amber-500/10 border-amber-500/25",
-    },
-  ];
-
-  const pendingRequests = [
-    {
-      renter: "Rahul M.",
-      vehicle: "Hyundai i20",
-      dates: "Jun 8 – Jun 10",
-      status: "Pending",
-    },
-    {
-      renter: "Priya S.",
-      vehicle: "Toyota Fortuner",
-      dates: "Jun 15 – Jun 18",
-      status: "Pending",
-    },
-  ];
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "Approved":
+        return "text-emerald-400 bg-emerald-500/10 border-emerald-500/25";
+      case "Pending":
+        return "text-amber-400 bg-amber-500/10 border-amber-500/25";
+      case "Rejected":
+        return "text-rose-400 bg-rose-500/10 border-rose-500/25";
+      default:
+        return "text-zinc-400 bg-zinc-800/80 border-zinc-700/50";
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -330,11 +327,11 @@ const HostView = ({ user }) => {
             in use. You set the price and availability.
           </p>
           <div className="pt-2 flex gap-3">
-            <button className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-emerald-600/20 cursor-pointer">
+            <button
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-emerald-600/20 cursor-pointer"
+              onClick={() => navigate("/list-vehicle")}
+            >
               <PlusCircle className="w-4 h-4" /> List a Vehicle
-            </button>
-            <button className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-medium text-sm px-4 py-2.5 rounded-xl transition-all cursor-pointer">
-              <BarChart2 className="w-4 h-4" /> View Earnings
             </button>
           </div>
         </div>
@@ -375,86 +372,150 @@ const HostView = ({ user }) => {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-base text-zinc-200">
-              My Listings
+              My Listed Vehicles
             </h3>
-            <button className="text-xs text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1 cursor-pointer">
-              Manage All <ChevronRight className="w-3 h-3" />
-            </button>
-          </div>
-          <div className="border border-zinc-900 bg-zinc-900/10 rounded-2xl overflow-hidden divide-y divide-zinc-900">
-            {myListings.map((v, i) => (
-              <div
-                key={i}
-                className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-zinc-900/30 transition"
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => navigate("/my-vehicles")}
+                className="text-xs text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1 cursor-pointer"
               >
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 shrink-0">
-                    <Car className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-sm text-zinc-200">
-                      {v.name}
-                    </h4>
-                    <p className="text-xs text-zinc-500 mt-0.5">{v.type}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 sm:gap-6 justify-between sm:justify-end">
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-zinc-200">
-                      {v.rate}
-                    </p>
-                    <p className="text-[11px] text-zinc-500">
-                      {v.bookings} bookings
-                    </p>
-                  </div>
-                  <span
-                    className={`text-[11px] font-medium font-mono px-2.5 py-1 rounded-full border ${v.statusClass}`}
-                  >
-                    {v.status}
-                  </span>
-                </div>
-              </div>
-            ))}
+                Manage Fleet <ChevronRight className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => navigate("/list-vehicle")}
+                className="text-xs text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1 cursor-pointer"
+              >
+                Add New <PlusCircle className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Pending Requests & Tips */}
-        <div className="space-y-4">
-          {/* Pending Booking Requests */}
-          <div>
-            <h3 className="font-semibold text-base text-zinc-200 mb-3">
-              Booking Requests
-            </h3>
-            <div className="space-y-3">
-              {pendingRequests.map((req, i) => (
+          {vehiclesHosted.length === 0 ? (
+            <div className="border border-dashed border-zinc-800 rounded-2xl p-8 text-center text-zinc-500 text-sm">
+              <Car className="w-8 h-8 text-zinc-650 mx-auto mb-2" />
+              You haven't listed any vehicles yet. Click "List a Vehicle" to get
+              started!
+            </div>
+          ) : (
+            <div className="border border-zinc-900 bg-zinc-900/10 rounded-2xl overflow-hidden divide-y divide-zinc-900">
+              {vehiclesHosted.map((v, i) => (
                 <div
                   key={i}
-                  className="bg-zinc-900/30 border border-zinc-900 rounded-xl p-4 space-y-3"
+                  className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-zinc-900/30 transition"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-200">
-                        {req.renter}
-                      </p>
-                      <p className="text-xs text-zinc-500">
-                        {req.vehicle} · {req.dates}
-                      </p>
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center overflow-hidden shrink-0">
+                      {v.images?.[0] ? (
+                        <img
+                          src={v.images[0]}
+                          alt={v.model}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Car className="w-5 h-5 text-zinc-500" />
+                      )}
                     </div>
-                    <span className="text-[10px] font-mono font-medium text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full shrink-0">
-                      {req.status}
-                    </span>
+                    <div>
+                      <h4 className="font-semibold text-sm text-zinc-200">
+                        {v.brand} {v.model} ({v.year})
+                      </h4>
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        {v.category} · {v.type} · {v.transmission}
+                      </p>
+                      {v.status === "Draft" && (
+                        <p className="text-[10px] text-amber-400 mt-1 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3 shrink-0" /> Awaiting
+                          VIN & License details for approval
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button className="flex-1 flex items-center justify-center gap-1 text-[11px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 py-1.5 rounded-lg transition cursor-pointer">
-                      <CheckCircle2 className="w-3 h-3" /> Accept
-                    </button>
-                    <button className="flex-1 flex items-center justify-center gap-1 text-[11px] font-medium text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 py-1.5 rounded-lg transition cursor-pointer">
-                      <AlertCircle className="w-3 h-3" /> Decline
-                    </button>
+                  <div className="flex items-center gap-4 sm:gap-6 justify-between sm:justify-end">
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-zinc-200">
+                        {formatINR(v.pricePerDay)}/day
+                      </p>
+                      {v.licensePlate ? (
+                        <p className="text-[10px] text-zinc-500 font-mono tracking-wider">
+                          {v.licensePlate} ({v.issuingState})
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-amber-500/80 font-mono font-medium">
+                          Incomplete Details
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {v.status === "Draft" && (
+                        <button
+                          onClick={() =>
+                            navigate("/list-vehicle", { state: { draft: v } })
+                          }
+                          className="px-3 py-1.5 rounded-lg bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/20 text-xs font-bold transition-all cursor-pointer"
+                        >
+                          Complete
+                        </button>
+                      )}
+                      <span
+                        className={`text-[11px] font-medium font-mono px-2.5 py-1 rounded-full border ${getStatusColor(v.status)}`}
+                      >
+                        {v.status}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
+          )}
+        </div>
+
+        {/* Incoming Bookings Ledger / Requests */}
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-semibold text-base text-zinc-200 mb-3">
+              Incoming Bookings
+            </h3>
+            {financials.rentalBookingsList?.length === 0 ? (
+              <div className="bg-zinc-900/20 border border-zinc-900 rounded-xl p-6 text-center text-zinc-500 text-xs">
+                No bookings received yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {financials.rentalBookingsList?.slice(0, 3).map((req, i) => (
+                  <div
+                    key={i}
+                    className="bg-zinc-900/30 border border-zinc-900 rounded-xl p-4 space-y-2.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-200">
+                          {req.customer?.name}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          {req.vehicle?.brand} {req.vehicle?.model}
+                        </p>
+                        <p className="text-[10px] text-zinc-650 mt-0.5">
+                          {new Date(req.startDate).toLocaleDateString()} -{" "}
+                          {new Date(req.endDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <span
+                        className={`text-[10px] font-mono font-medium border px-2 py-0.5 rounded-full shrink-0 ${
+                          req.status === "Confirmed"
+                            ? "text-blue-400 bg-blue-500/10 border-blue-500/20"
+                            : req.status === "Completed"
+                              ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                              : "text-amber-400 bg-amber-500/10 border-amber-500/20"
+                        }`}
+                      >
+                        {req.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Quick Tip */}
@@ -464,15 +525,13 @@ const HostView = ({ user }) => {
               <span className="text-sm font-semibold">Hosting Tip</span>
             </div>
             <p className="text-xs text-zinc-400 leading-relaxed">
-              Listings with clear photos and competitive pricing get{" "}
+              Listings with detailed features and license plate uploads get
+              verified quickly and receive{" "}
               <span className="text-zinc-200 font-medium">
-                3× more bookings
+                3× more guest requests
               </span>
-              . Update your availability calendar regularly.
+              .
             </p>
-            <button className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer mt-1">
-              Optimize my listing <ArrowUpRight className="w-3 h-3" />
-            </button>
           </div>
         </div>
       </div>
@@ -484,9 +543,29 @@ const HostView = ({ user }) => {
 const Dashboard = () => {
   const { user } = useAuth();
   const [activeMode, setActiveMode] = useState("renter");
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchDashboard = async () => {
+    try {
+      setLoading(true);
+      const response = await getUserDashboardData();
+      if (response?.success) {
+        setDashboardData(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to load dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboard();
+  }, []);
 
   return (
-    <div className="flex min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-blue-600/30">
+    <div className="flex min-h-screen bg-transparent text-zinc-100 font-sans selection:bg-blue-600/30">
       <Sidebar />
 
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
@@ -524,11 +603,6 @@ const Dashboard = () => {
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="p-2 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 rounded-xl transition relative cursor-pointer">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-500" />
-            </button>
-            <div className="w-px h-6 bg-zinc-900" />
             <div className="flex items-center gap-2">
               {user?.isVerifiedEmail ? (
                 <ShieldCheck className="w-5 h-5 text-blue-500" />
@@ -543,11 +617,31 @@ const Dashboard = () => {
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 p-8 max-w-7xl w-full mx-auto">
-          {activeMode === "renter" ? (
-            <RenterView user={user} />
+        <div className="flex-1 p-8 max-w-7xl w-full mx-auto flex flex-col">
+          {loading ? (
+            <div className="flex-1 flex flex-col items-center justify-center py-20">
+              <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-3" />
+              <p className="text-sm text-zinc-500 font-medium">
+                Fetching dashboard details...
+              </p>
+            </div>
+          ) : activeMode === "renter" ? (
+            <RenterView
+              user={user}
+              vehiclesRented={dashboardData?.vehiclesRented || []}
+            />
           ) : (
-            <HostView user={user} />
+            <HostView
+              user={user}
+              vehiclesHosted={dashboardData?.vehiclesHosted || []}
+              financials={
+                dashboardData?.financials || {
+                  totalEarned: 0,
+                  totalRentedOutCount: 0,
+                  rentalBookingsList: [],
+                }
+              }
+            />
           )}
         </div>
       </main>
