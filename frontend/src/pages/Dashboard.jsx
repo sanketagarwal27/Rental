@@ -3,6 +3,7 @@ import Sidebar from "../components/Sidebar";
 import NearbyVehicles from "../components/NearbyVehicles";
 import { useAuth } from "../context/AuthContext";
 import { getUserDashboardData } from "../api/profile";
+import { cancelBooking } from "../api/booking";
 import {
   Car,
   Calendar,
@@ -36,13 +37,30 @@ const formatINR = (val) => {
   }).format(val || 0);
 };
 
+const statusStyle = (status) => {
+  if (status === "Confirmed")
+    return "text-blue-400 bg-blue-500/10 border-blue-500/25";
+  if (status === "Completed")
+    return "text-emerald-400 bg-emerald-500/10 border-emerald-500/25";
+  if (status === "Cancelled")
+    return "text-zinc-500 bg-zinc-800/80 border-zinc-700/50";
+  return "text-zinc-400 bg-zinc-800/80 border-zinc-700/50";
+};
+
 // ─── Renter View ────────────────────────────────────────────────────────────
-const RenterView = ({ user, vehiclesRented }) => {
+const RenterView = ({
+  user,
+  vehiclesRented,
+  onCancelBooking,
+  cancellingId,
+  onSelectBooking,
+}) => {
   const navigate = useNavigate();
-  const totalSpent = vehiclesRented.reduce(
-    (sum, trip) => sum + (trip.totalPrice || 0),
-    0,
-  );
+
+  const handleCardClick = (e, bk) => {
+    if (e.target.closest("button")) return;
+    onSelectBooking(bk);
+  };
 
   const stats = [
     {
@@ -58,13 +76,6 @@ const RenterView = ({ user, vehiclesRented }) => {
       sub: "Upcoming or ongoing",
       icon: Car,
       accent: "amber",
-    },
-    {
-      title: "Total Spent",
-      value: formatINR(totalSpent),
-      sub: "Lifetime spend",
-      icon: DollarSign,
-      accent: "emerald",
     },
     {
       title: "Completed Trips",
@@ -99,10 +110,7 @@ const RenterView = ({ user, vehiclesRented }) => {
           </p>
           <div className="pt-2 flex gap-3">
             <button
-              onClick={() => {
-                const searchEl = document.getElementById("search-section");
-                searchEl?.scrollIntoView({ behavior: "smooth" });
-              }}
+              onClick={() => navigate("/search")}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-600/20 cursor-pointer"
             >
               <Search className="w-4 h-4" /> Find a Vehicle
@@ -159,39 +167,110 @@ const RenterView = ({ user, vehiclesRented }) => {
               {vehiclesRented.map((bk, i) => (
                 <div
                   key={i}
-                  className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-zinc-900/30 transition"
+                  onClick={(e) => handleCardClick(e, bk)}
+                  className="p-5 flex flex-col gap-3 hover:bg-zinc-900/40 transition cursor-pointer"
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 shrink-0">
-                      <Car className="w-5 h-5" />
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 shrink-0">
+                        <Car className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-sm text-zinc-200">
+                          {bk.vehicle?.brand} {bk.vehicle?.model}
+                        </h4>
+                        <p className="text-xs text-zinc-500 mt-0.5 flex items-center gap-1">
+                          <MapPin className="w-3 h-3" /> {bk.vehicle?.address}
+                        </p>
+                        <p className="text-xs text-zinc-600 mt-0.5">
+                          {new Date(bk.startDate).toLocaleDateString()} →{" "}
+                          {new Date(bk.endDate).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-sm text-zinc-200">
-                        {bk.vehicle?.brand} {bk.vehicle?.model}
-                      </h4>
-                      <p className="text-xs text-zinc-500 mt-0.5 flex items-center gap-1">
-                        <MapPin className="w-3 h-3" /> {bk.vehicle?.address} ·{" "}
-                        {new Date(bk.startDate).toLocaleDateString()} to{" "}
-                        {new Date(bk.endDate).toLocaleDateString()}
-                      </p>
+                    <div className="flex items-center gap-3 sm:flex-col sm:items-end">
+                      <span className="font-semibold text-sm text-zinc-200">
+                        {formatINR(bk.totalPrice)}
+                      </span>
+                      <span
+                        className={`text-[11px] font-medium font-mono px-2.5 py-1 rounded-full border ${statusStyle(bk.status)}`}
+                      >
+                        {bk.status}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 sm:gap-6 justify-between sm:justify-end">
-                    <span className="font-semibold text-sm text-zinc-200">
-                      {formatINR(bk.totalPrice)}
-                    </span>
-                    <span
-                      className={`text-[11px] font-medium font-mono px-2.5 py-1 rounded-full border ${
-                        bk.status === "Confirmed"
-                          ? "text-blue-400 bg-blue-500/10 border-blue-500/25"
-                          : bk.status === "Completed"
-                            ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/25"
-                            : "text-zinc-400 bg-zinc-800/80 border-zinc-700/50"
-                      }`}
-                    >
-                      {bk.status}
-                    </span>
-                  </div>
+
+                  {/* Payment breakdown */}
+                  {bk.amountPaid > 0 && (
+                    <div className="ml-14 text-[11px] text-zinc-500 flex flex-wrap gap-3">
+                      <span>
+                        Paid:{" "}
+                        <span className="text-emerald-400 font-semibold">
+                          {formatINR(bk.amountPaid)}
+                        </span>
+                      </span>
+                      {bk.securityDepositHeld > 0 && (
+                        <span>
+                          Deposit hold:{" "}
+                          <span className="text-amber-400 font-semibold">
+                            {formatINR(bk.securityDepositHeld)}
+                          </span>
+                        </span>
+                      )}
+                      <span>
+                        Due on pickup:{" "}
+                        <span className="text-zinc-300 font-semibold">
+                          {formatINR(bk.totalPrice - bk.amountPaid)}
+                        </span>
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Refund info on cancellation */}
+                  {bk.status === "Cancelled" && (
+                    <div className="ml-14 text-[11px] space-y-1">
+                      {bk.refundAmount > 0 ? (
+                        <div className="text-emerald-400 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Refund of {formatINR(bk.refundAmount)} processed
+                        </div>
+                      ) : (
+                        <div className="text-zinc-500 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          No booking refund applicable (past cancellation
+                          deadline)
+                        </div>
+                      )}
+                      {bk.securityDepositHeld > 0 && (
+                        <div className="text-amber-400 flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3" />
+                          Security deposit hold of{" "}
+                          {formatINR(bk.securityDepositHeld)} released
+                        </div>
+                      )}
+                      {bk.cancellationReason && (
+                        <div className="text-rose-450/90 flex items-start gap-1 mt-1.5">
+                          <AlertCircle className="w-3 h-3 text-rose-450 shrink-0 mt-0.5" />
+                          <span>Cancellation Reason: {bk.cancellationReason}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Cancel button */}
+                  {bk.status === "Confirmed" && (
+                    <div className="ml-14">
+                      <button
+                        onClick={() => onCancelBooking(bk._id, "renter")}
+                        disabled={cancellingId === bk._id}
+                        className="text-xs text-rose-400 hover:text-rose-300 border border-rose-500/20 hover:border-rose-500/40 bg-rose-500/5 hover:bg-rose-500/10 px-3 py-1.5 rounded-lg transition cursor-pointer disabled:opacity-50"
+                      >
+                        {cancellingId === bk._id
+                          ? "Cancelling…"
+                          : "Cancel Booking"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -210,10 +289,7 @@ const RenterView = ({ user, vehiclesRented }) => {
                 label: "Browse Vehicles",
                 sub: "Find cars or motorbikes near you",
                 color: "text-amber-400",
-                onClick: () => {
-                  const searchEl = document.getElementById("search-section");
-                  searchEl?.scrollIntoView({ behavior: "smooth" });
-                },
+                onClick: () => navigate("/search"),
               },
               {
                 icon: Star,
@@ -248,16 +324,16 @@ const RenterView = ({ user, vehiclesRented }) => {
       </div>
 
       {/* Nearby Vehicles — full width */}
-      <div id="search-section" className="border-t border-zinc-900 pt-8">
+      <div className="border-t border-zinc-900 pt-8">
         <NearbyVehicles />
       </div>
     </div>
   );
 };
 
-// ─── Host View ───────────────────────────────────────────────────────────────
-const HostView = ({ user, vehiclesHosted, financials }) => {
+const HostView = ({ user, vehiclesHosted, financials, onCancelBooking, cancellingId }) => {
   const navigate = useNavigate();
+
 
   const stats = [
     {
@@ -275,19 +351,11 @@ const HostView = ({ user, vehiclesHosted, financials }) => {
       accent: "indigo",
     },
     {
-      title: "Total Earned",
+      title: "Your Net Earnings",
       value: formatINR(financials.totalEarned),
-      sub: "Credited earnings",
+      sub: "After 5% platform fee",
       icon: DollarSign,
       accent: "emerald",
-    },
-    {
-      title: "Pending",
-      value: vehiclesHosted.filter((v) => v.status === "Pending")
-        .length,
-      sub: "Awaiting review",
-      icon: Clock,
-      accent: "amber",
     },
   ];
 
@@ -338,8 +406,30 @@ const HostView = ({ user, vehiclesHosted, financials }) => {
         <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-gradient-to-l from-emerald-500/5 to-transparent pointer-events-none" />
       </div>
 
+      {/* Platform Commission Disclosure */}
+      <div className="bg-amber-500/6 border border-amber-500/20 rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
+            <BarChart2 className="w-4 h-4 text-amber-400" />
+          </div>
+          <span className="text-sm font-semibold text-amber-300">
+            Platform Commission Policy
+          </span>
+        </div>
+        <p className="text-xs text-zinc-400 leading-relaxed">
+          A{" "}
+          <span className="text-amber-300 font-semibold">
+            5% platform commission
+          </span>{" "}
+          is deducted from your total booking amount. You receive{" "}
+          <span className="text-emerald-400 font-semibold">95%</span> as your
+          net payout, released upon trip completion. This fee covers payment
+          processing, platform maintenance, and customer support.
+        </p>
+      </div>
+
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {stats.map((s, i) => {
           const Icon = s.icon;
           return (
@@ -375,7 +465,7 @@ const HostView = ({ user, vehiclesHosted, financials }) => {
               My Listed Vehicles
             </h3>
             <div className="flex items-center gap-4">
-              <button 
+              <button
                 onClick={() => navigate("/my-vehicles")}
                 className="text-xs text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1 cursor-pointer"
               >
@@ -482,38 +572,60 @@ const HostView = ({ user, vehiclesHosted, financials }) => {
               </div>
             ) : (
               <div className="space-y-3">
-                {financials.rentalBookingsList?.slice(0, 3).map((req, i) => (
-                  <div
-                    key={i}
-                    className="bg-zinc-900/30 border border-zinc-900 rounded-xl p-4 space-y-2.5"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-semibold text-zinc-200">
-                          {req.customer?.name}
-                        </p>
-                        <p className="text-xs text-zinc-500">
-                          {req.vehicle?.brand} {req.vehicle?.model}
-                        </p>
-                        <p className="text-[10px] text-zinc-650 mt-0.5">
-                          {new Date(req.startDate).toLocaleDateString()} -{" "}
-                          {new Date(req.endDate).toLocaleDateString()}
-                        </p>
+                {financials.rentalBookingsList?.slice(0, 5).map((req, i) => {
+                  const payout =
+                    req.hostPayout ?? Math.round((req.totalPrice || 0) * 0.95);
+                  return (
+                    <div
+                      key={i}
+                      className="bg-zinc-900/30 border border-zinc-900 rounded-xl p-4 space-y-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-zinc-200">
+                            {req.customer?.name}
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            {req.vehicle?.brand} {req.vehicle?.model}
+                          </p>
+                          <p className="text-[10px] text-zinc-600 mt-0.5">
+                            {new Date(req.startDate).toLocaleDateString()} –{" "}
+                            {new Date(req.endDate).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5 shrink-0 text-right">
+                          <span
+                            className={`text-[10px] font-mono font-medium border px-2 py-0.5 rounded-full ${
+                              req.status === "Confirmed"
+                                ? "text-blue-400 bg-blue-500/10 border-blue-500/20"
+                                : req.status === "Completed"
+                                  ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                                  : "text-zinc-400 bg-zinc-800/80 border-zinc-700/50"
+                            }`}
+                          >
+                            {req.status}
+                          </span>
+                          <p className="text-xs font-semibold text-emerald-400">
+                            {formatINR(payout)}
+                          </p>
+                        </div>
                       </div>
-                      <span
-                        className={`text-[10px] font-mono font-medium border px-2 py-0.5 rounded-full shrink-0 ${
-                          req.status === "Confirmed"
-                            ? "text-blue-400 bg-blue-500/10 border-blue-500/20"
-                            : req.status === "Completed"
-                              ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-                              : "text-amber-400 bg-amber-500/10 border-amber-500/20"
-                        }`}
-                      >
-                        {req.status}
-                      </span>
+                      {req.status === "Confirmed" && (
+                        <div className="flex justify-end pt-1">
+                          <button
+                            onClick={() => onCancelBooking(req._id, "host")}
+                            disabled={cancellingId === req._id}
+                            className="text-[11px] text-rose-400 hover:text-rose-300 border border-rose-500/20 hover:border-rose-500/40 bg-rose-500/5 hover:bg-rose-500/10 px-2.5 py-1 rounded-lg transition cursor-pointer disabled:opacity-50 font-medium"
+                          >
+                            {cancellingId === req._id
+                              ? "Cancelling…"
+                              : "Cancel Booking"}
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -532,6 +644,12 @@ const HostView = ({ user, vehiclesHosted, financials }) => {
               </span>
               .
             </p>
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              If your listing is{" "}
+              <span className="text-white font-medium">rejected</span>, then try
+              filling it again with{" "}
+              <span className="text-white font-medium">correct</span> details.
+            </p>
           </div>
         </div>
       </div>
@@ -545,6 +663,71 @@ const Dashboard = () => {
   const [activeMode, setActiveMode] = useState("renter");
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState(null);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    bookingId: null,
+    mode: "renter",
+    selectedReason: "",
+    reason: "",
+  });
+
+  const onCancelBooking = (bookingId, mode) => {
+    setConfirmModal({
+      isOpen: true,
+      bookingId,
+      mode,
+      selectedReason: "",
+      reason: "",
+    });
+  };
+
+  const handleConfirmCancellation = async () => {
+    const { bookingId, mode, selectedReason, reason } = confirmModal;
+    if (!bookingId) return;
+    if (mode === "host") {
+      if (!selectedReason) {
+        const { toast } = await import("sonner");
+        toast.error("Please select a reason for cancellation.");
+        return;
+      }
+      if (selectedReason === "Other" && !reason.trim()) {
+        const { toast } = await import("sonner");
+        toast.error("Please specify your reason for cancellation.");
+        return;
+      }
+    }
+    try {
+      setCancellingId(bookingId);
+      setConfirmModal({
+        isOpen: false,
+        bookingId: null,
+        mode: "renter",
+        selectedReason: "",
+        reason: "",
+      });
+      const { toast } = await import("sonner");
+      const { cancelBooking: cancelApi } = await import("../api/booking");
+
+      const cancelReason =
+        mode === "host"
+          ? (selectedReason === "Other" ? reason.trim() : selectedReason)
+          : "Cancelled by customer from dashboard";
+      const res = await cancelApi(bookingId, cancelReason);
+
+      toast.success(res.message || "Booking cancelled successfully.");
+      fetchDashboard();
+    } catch (err) {
+      const { toast } = await import("sonner");
+      toast.error(
+        err?.response?.data?.message ||
+          "Could not cancel booking. Please try again.",
+      );
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   const fetchDashboard = async () => {
     try {
@@ -617,7 +800,7 @@ const Dashboard = () => {
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 p-8 max-w-7xl w-full mx-auto flex flex-col">
+        <div className="flex-1 p-8 pb-32 lg:pb-8 max-w-7xl w-full mx-auto flex flex-col">
           {loading ? (
             <div className="flex-1 flex flex-col items-center justify-center py-20">
               <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-3" />
@@ -629,11 +812,16 @@ const Dashboard = () => {
             <RenterView
               user={user}
               vehiclesRented={dashboardData?.vehiclesRented || []}
+              onCancelBooking={onCancelBooking}
+              cancellingId={cancellingId}
+              onSelectBooking={setSelectedBooking}
             />
           ) : (
             <HostView
               user={user}
               vehiclesHosted={dashboardData?.vehiclesHosted || []}
+              onCancelBooking={onCancelBooking}
+              cancellingId={cancellingId}
               financials={
                 dashboardData?.financials || {
                   totalEarned: 0,
@@ -645,6 +833,334 @@ const Dashboard = () => {
           )}
         </div>
       </main>
+
+      {/* Custom Cancellation Confirmation Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-md w-full space-y-4 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-start gap-3 text-rose-400">
+              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-bold text-zinc-100 text-base">
+                  Cancel Booking
+                </h3>
+                <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                  {confirmModal.mode === "host"
+                    ? "Are you sure you want to cancel this booking? The renter will receive a 100% full refund of their payment."
+                    : "Are you sure you want to cancel your booking? Refund will be calculated based on how close you are to the start date."}
+                </p>
+              </div>
+            </div>
+
+            {confirmModal.mode === "host" && (
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
+                    Reason for Cancellation
+                  </label>
+                  <select
+                    value={confirmModal.selectedReason}
+                    onChange={(e) =>
+                      setConfirmModal((prev) => ({
+                        ...prev,
+                        selectedReason: e.target.value,
+                      }))
+                    }
+                    className="bg-zinc-800 border border-zinc-700/60 rounded-xl px-4 py-2.5 text-zinc-150 text-sm focus:outline-none focus:border-rose-500/60 focus:bg-zinc-800 transition cursor-pointer"
+                  >
+                    <option value="" disabled>Select a reason...</option>
+                    <option value="Vehicle broke down / needs urgent maintenance">Vehicle broke down / needs urgent maintenance</option>
+                    <option value="Host personal emergency">Host personal emergency</option>
+                    <option value="Vehicle was in an accident">Vehicle was in an accident</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                {confirmModal.selectedReason === "Other" && (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
+                      Specify Custom Reason
+                    </label>
+                    <textarea
+                      value={confirmModal.reason}
+                      onChange={(e) =>
+                        setConfirmModal((prev) => ({
+                          ...prev,
+                          reason: e.target.value,
+                        }))
+                      }
+                      placeholder="Write custom reason..."
+                      rows={3}
+                      className="bg-zinc-800/60 border border-zinc-700/60 rounded-xl px-4 py-2.5 text-zinc-100 text-sm placeholder-zinc-500 focus:outline-none focus:border-rose-500/60 focus:bg-zinc-800 transition resize-none"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() =>
+                  setConfirmModal({
+                    isOpen: false,
+                    bookingId: null,
+                    mode: "renter",
+                    selectedReason: "",
+                    reason: "",
+                  })
+                }
+                className="flex-1 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium text-xs border border-zinc-700 transition cursor-pointer"
+              >
+                No, Keep Booking
+              </button>
+              <button
+                onClick={handleConfirmCancellation}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs transition cursor-pointer flex items-center justify-center"
+              >
+                Yes, Cancel Booking
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Booking Details Modal */}
+      {selectedBooking && (
+        <div className="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto divide-y divide-zinc-800 animate-in fade-in zoom-in duration-200">
+            {/* Header */}
+            <div className="p-5 flex justify-between items-center bg-zinc-950/20">
+              <div>
+                <h3 className="font-bold text-zinc-100 text-base">
+                  Trip Details
+                </h3>
+                <p className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                  ID: {selectedBooking._id}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedBooking(null)}
+                className="p-1.5 rounded-lg border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 hover:text-zinc-200 text-zinc-400 transition cursor-pointer text-xs font-semibold px-3"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Vehicle Details */}
+            {selectedBooking.vehicle && (
+              <div className="p-5 space-y-4">
+                <div className="flex flex-col gap-3">
+                  <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                    Vehicle Info
+                  </h4>
+                  {selectedBooking.vehicle.images &&
+                  selectedBooking.vehicle.images.length > 0 ? (
+                    <div className="flex snap-x snap-mandatory overflow-x-auto gap-2 p-1 scrollbar-none bg-zinc-950/40 border border-zinc-800 rounded-xl">
+                      {selectedBooking.vehicle.images.map((img, idx) => (
+                        <img
+                          key={idx}
+                          src={img}
+                          alt={`${selectedBooking.vehicle.brand} ${selectedBooking.vehicle.model} ${idx + 1}`}
+                          className="snap-start w-[240px] h-36 object-cover rounded-lg shrink-0"
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="w-full h-36 bg-zinc-800 border border-zinc-800 rounded-xl flex items-center justify-center text-zinc-500">
+                      <Car className="w-10 h-10" />
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-start mt-1">
+                    <div>
+                      <h5 className="font-bold text-sm text-zinc-200">
+                        {selectedBooking.vehicle.brand}{" "}
+                        {selectedBooking.vehicle.model} (
+                        {selectedBooking.vehicle.year})
+                      </h5>
+                      <p className="text-xs text-zinc-500 mt-0.5 flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-zinc-500" />{" "}
+                        {selectedBooking.vehicle.address}
+                      </p>
+                    </div>
+                    {selectedBooking.vehicle.licensePlate && (
+                      <span className="text-[10px] font-mono font-bold bg-zinc-800 border border-zinc-700 text-zinc-400 px-2.5 py-1 rounded uppercase tracking-wider shrink-0">
+                        {selectedBooking.vehicle.licensePlate}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 text-[10px] text-zinc-400">
+                    <span className="bg-zinc-800 border border-zinc-750 px-2 py-0.5 rounded-full">
+                      {selectedBooking.vehicle.type}
+                    </span>
+                    <span className="bg-zinc-800 border border-zinc-750 px-2 py-0.5 rounded-full">
+                      {selectedBooking.vehicle.fuelType}
+                    </span>
+                    <span className="bg-zinc-800 border border-zinc-750 px-2 py-0.5 rounded-full">
+                      {selectedBooking.vehicle.transmission}
+                    </span>
+                    <span className="bg-zinc-800 border border-zinc-750 px-2 py-0.5 rounded-full">
+                      {selectedBooking.vehicle.seats} seats
+                    </span>
+                  </div>
+
+                  {selectedBooking.vehicle.features &&
+                    selectedBooking.vehicle.features.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider">
+                          Features
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {selectedBooking.vehicle.features.map((feat, idx) => (
+                            <span
+                              key={idx}
+                              className="text-[9px] bg-zinc-800 border border-zinc-700 text-zinc-350 px-1.5 py-0.5 rounded"
+                            >
+                              {feat}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                </div>
+              </div>
+            )}
+
+            {/* Booking Details */}
+            <div className="p-5 space-y-4">
+              <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                Booking Info
+              </h4>
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <p className="text-zinc-500 mb-0.5">Trip Starts</p>
+                  <p className="font-semibold text-zinc-200">
+                    {new Date(selectedBooking.startDate).toLocaleDateString(
+                      "en-IN",
+                      {
+                        weekday: "short",
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      },
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-zinc-500 mb-0.5">Trip Ends</p>
+                  <p className="font-semibold text-zinc-200">
+                    {new Date(selectedBooking.endDate).toLocaleDateString(
+                      "en-IN",
+                      {
+                        weekday: "short",
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      },
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-zinc-500 mb-0.5">Status</p>
+                  <span
+                    className={`inline-block text-[10px] font-mono font-medium border px-2 py-0.5 rounded-full ${statusStyle(selectedBooking.status)}`}
+                  >
+                    {selectedBooking.status}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-zinc-500 mb-0.5">Booking Made</p>
+                  <p className="text-zinc-450 font-mono text-[10px]">
+                    {new Date(
+                      selectedBooking.createdAt || Date.now(),
+                    ).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Financial Summary */}
+            <div className="p-5 space-y-3 bg-zinc-950/10">
+              <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                Payment Breakdown
+              </h4>
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">Total Price</span>
+                  <span className="font-semibold text-zinc-200">
+                    {formatINR(selectedBooking.totalPrice)}
+                  </span>
+                </div>
+                {selectedBooking.amountPaid > 0 && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">
+                        Advance token paid (25%)
+                      </span>
+                      <span className="font-semibold text-emerald-400">
+                        {formatINR(selectedBooking.amountPaid)}
+                      </span>
+                    </div>
+                    {selectedBooking.securityDepositHeld > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-zinc-500">
+                          Security deposit hold (released on return)
+                        </span>
+                        <span className="font-semibold text-amber-400">
+                          {formatINR(selectedBooking.securityDepositHeld)}
+                        </span>
+                      </div>
+                    )}
+                    {selectedBooking.status !== "Cancelled" && (
+                      <div className="flex justify-between border-t border-zinc-800 pt-2 font-medium">
+                        <span className="text-zinc-300">
+                          Remaining due on pickup (75%)
+                        </span>
+                        <span className="text-zinc-150 font-bold">
+                          {formatINR(
+                            selectedBooking.totalPrice -
+                              selectedBooking.amountPaid,
+                          )}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {selectedBooking.status === "Cancelled" && (
+                  <div className="border-t border-zinc-800 pt-2 space-y-1 bg-rose-500/5 p-2.5 rounded-xl border border-rose-500/10">
+                    <p className="text-[10px] font-semibold text-rose-400 uppercase tracking-wider">
+                      Cancellation Summary
+                    </p>
+                    <p className="text-[11px] text-zinc-400">
+                      Reason:{" "}
+                      <span className="text-zinc-300">
+                        {selectedBooking.cancellationReason ||
+                          "No reason provided"}
+                      </span>
+                    </p>
+                    {selectedBooking.refundAmount > 0 ? (
+                      <p className="text-[11px] text-emerald-400 font-medium">
+                        Refund processed:{" "}
+                        {formatINR(selectedBooking.refundAmount)}
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-zinc-500 font-medium">
+                        No booking refund applicable under policy.
+                      </p>
+                    )}
+                    {selectedBooking.securityDepositHeld > 0 && (
+                      <p className="text-[11px] text-amber-400 font-medium">
+                        Security deposit hold released in full.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

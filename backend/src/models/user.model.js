@@ -3,6 +3,19 @@ import validator from "validator";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 
+const COUNTRY_LOCALES = {
+  "+1": ["en-US", "en-CA"],
+  "+91": ["en-IN"],
+  "+44": ["en-GB"],
+  "+61": ["en-AU"],
+  "+49": ["de-DE"],
+  "+33": ["fr-FR"],
+  "+81": ["ja-JP"],
+  "+86": ["zh-CN"],
+  "+55": ["pt-BR"],
+  "+7": ["ru-RU"],
+};
+
 const UserSchema = new Schema(
   {
     name: {
@@ -51,7 +64,14 @@ const UserSchema = new Schema(
       validate: {
         validator: function (value) {
           if (!value) return true; // phone is optional
-          return validator.isMobilePhone(value, "any", { strictMode: false });
+          const prefix = Object.keys(COUNTRY_LOCALES).find((p) => value.startsWith(p));
+          if (!prefix) {
+            return validator.isMobilePhone(value, "any", { strictMode: false });
+          }
+          const locales = COUNTRY_LOCALES[prefix];
+          return locales.some((locale) =>
+            validator.isMobilePhone(value, locale, { strictMode: true })
+          );
         },
         message: (props) => `${props.value} is not a valid phone number!`,
       },

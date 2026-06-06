@@ -110,6 +110,16 @@ const MyVehicles = () => {
     }
   };
 
+  const handleToggleAvailability = async (id, isAvailable) => {
+    try {
+      await updateVehicleAvailability(id, undefined, isAvailable);
+      toast.success(isAvailable ? "Vehicle activated successfully" : "Vehicle paused successfully");
+      fetchData(); // refresh the list
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update status");
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -117,13 +127,13 @@ const MyVehicles = () => {
   // Calculate stats
   const totalRevenue = bookings
     .filter(b => ["Confirmed", "Completed"].includes(b.status))
-    .reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+    .reduce((sum, b) => sum + (b.hostPayout || (b.totalPrice * 0.95) || 0), 0);
 
   // Calculate revenue per vehicle
   const getVehicleRevenue = (vehicleId) => {
     return bookings
       .filter(b => b.vehicle?._id === vehicleId && ["Confirmed", "Completed"].includes(b.status))
-      .reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+      .reduce((sum, b) => sum + (b.hostPayout || (b.totalPrice * 0.95) || 0), 0);
   };
 
   // Get status color helper
@@ -173,7 +183,7 @@ const MyVehicles = () => {
     <div className="flex min-h-screen bg-transparent text-zinc-100 font-sans selection:bg-blue-600/30">
       <Sidebar />
       
-      <main className="flex-1 p-8 overflow-y-auto max-w-6xl mx-auto flex flex-col">
+      <main className="flex-1 p-8 pb-32 lg:pb-8 overflow-y-auto max-w-6xl mx-auto flex flex-col">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <button 
@@ -314,8 +324,12 @@ const MyVehicles = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full border ${getStatusColor(v.status)}`}>
-                              {v.status}
+                            <span className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full border ${
+                              v.status === "Approved" && !v.isAvailable
+                                ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
+                                : getStatusColor(v.status)
+                            }`}>
+                              {v.status === "Approved" && !v.isAvailable ? "Paused" : v.status}
                             </span>
                             {v.licensePlate && (
                               <span className="text-[10px] font-mono text-zinc-500 uppercase bg-zinc-950 px-2 py-0.5 border border-zinc-800 rounded">
@@ -369,15 +383,27 @@ const MyVehicles = () => {
                           </button>
                         ) : (
                           <div className="flex items-center gap-3">
-                            <span className="text-[10px] text-zinc-600 font-medium self-center">
-                              Awaiting requests...
-                            </span>
-                            <button
-                              onClick={() => openAvailabilityModal(v)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-lg transition cursor-pointer"
-                            >
-                              <Calendar className="w-3.5 h-3.5 text-blue-400" /> Manage Availability
-                            </button>
+                            {v.status === "Approved" && (
+                              <button
+                                onClick={() => handleToggleAvailability(v._id, !v.isAvailable)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition border cursor-pointer ${
+                                  v.isAvailable
+                                    ? "bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20 text-amber-400"
+                                    : "bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/20 text-emerald-400"
+                                }`}
+                              >
+                                {v.isAvailable ? "Pause" : "Activate"}
+                              </button>
+                            )}
+
+                            {v.status !== "Rejected" && (
+                              <button
+                                onClick={() => openAvailabilityModal(v)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-lg transition cursor-pointer"
+                              >
+                                <Calendar className="w-3.5 h-3.5 text-blue-400" /> Manage Availability
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>

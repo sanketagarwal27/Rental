@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import { validate, validate as vinValidate } from "vin-validator";
 
 const VehicleSchema = new Schema(
   {
@@ -38,6 +39,7 @@ const VehicleSchema = new Schema(
         "Sportbike",
         "Scooter",
         "Adventure",
+        "Motorcycle",
       ],
     },
     transmission: {
@@ -70,6 +72,10 @@ const VehicleSchema = new Schema(
       sparse: true,
       uppercase: true,
       trim: true,
+      validate: {
+        validator: (v) => vinValidate(v),
+        message: "Invalid VIN or Chassis Number",
+      },
     },
     licensePlate: {
       type: String,
@@ -119,5 +125,21 @@ const VehicleSchema = new Schema(
 );
 
 VehicleSchema.index({ location: "2dsphere" });
-VehicleSchema.index({ licensePlate: 1, issuingState: 1 }, { unique: true });
+VehicleSchema.index({ licensePlate: 1, issuingState: 1 });
+
+VehicleSchema.pre("save", async function () {
+  if (this.isModified("licensePlate") || this.isModified("issuingState")) {
+    const duplicate = await this.constructor.findOne({
+      licensePlate: this.licensePlate,
+      issuingState: this.issuingState,
+      isDeleted: { $ne: true },
+      status: { $ne: "Rejected" },
+      _id: { $ne: this._id },
+    });
+    if (duplicate) {
+      throw new Error("A vehicle with this license plate and issuing state already exists.");
+    }
+  }
+});
+
 export const Vehicle = mongoose.model("Vehicle", VehicleSchema);

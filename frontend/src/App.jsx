@@ -7,6 +7,8 @@ import Profile from "./pages/Profile";
 import VerifyEmail from "./pages/VerifyEmail";
 import ListVehicle from "./pages/ListVehicle";
 import MyVehicles from "./pages/MyVehicles";
+import SearchResults from "./pages/SearchResults";
+import BookingPage from "./pages/BookingPage";
 function App() {
   return (
     <>
@@ -55,6 +57,22 @@ function App() {
           element={
             <ProtectedRoute>
               <MyVehicles />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/search"
+          element={
+            <ProtectedRoute>
+              <SearchResults />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/booking/:vehicleId"
+          element={
+            <ProtectedRoute>
+              <BookingPage />
             </ProtectedRoute>
           }
         />

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useLocation } from "../context/LocationContext";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
@@ -14,6 +15,8 @@ import {
   Loader2,
   WifiOff,
   SlidersHorizontal,
+  Lock,
+  RefreshCw,
 } from "lucide-react";
 
 // Fuel icon colors
@@ -26,21 +29,25 @@ const fuelColors = {
 
 const VehicleCard = ({ vehicle }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const fuelColor = fuelColors[vehicle.fuelType] || "text-zinc-400";
+  const [locking, setLocking] = useState(false);
 
-  const handleBooking = () => {
+  const handleBooking = async () => {
     if (!user) {
       toast.error("Please login to proceed with booking");
       return;
     }
     if (!user.isVerifiedEmail || !user.isVerifiedPhone) {
       toast.error(
-        "Verification Required: Your email and phone number must be verified in your Profile before booking.",
+        "Please verify your email and phone before booking.",
         { duration: 5000 },
       );
       return;
     }
-    console.log("Booking...");
+
+    // Navigate to BookingPage in "check availability" mode (no dates pre-selected)
+    navigate(`/booking/${vehicle._id}`);
   };
 
   return (
@@ -113,7 +120,7 @@ const VehicleCard = ({ vehicle }) => {
             onClick={handleBooking}
             className="flex items-center gap-1 text-xs font-medium text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 px-3 py-1.5 rounded-lg transition cursor-pointer"
           >
-            Book <ChevronRight className="w-3 h-3" />
+            Check Availability <ChevronRight className="w-3 h-3" />
           </button>
         </div>
       </div>

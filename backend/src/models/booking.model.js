@@ -1,4 +1,4 @@
-import mongoose, { MongooseError, Schema } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
 const BookingSchema = new Schema(
   {
@@ -29,10 +29,46 @@ const BookingSchema = new Schema(
       type: Number,
       required: true,
     },
+    amountPaid: {
+      type: Number,
+      default: 0,
+    },
+    // Platform commission (5% of totalPrice)
+    platformFee: {
+      type: Number,
+      default: 0,
+    },
+    // Host payout after platform commission (95% of totalPrice)
+    hostPayout: {
+      type: Number,
+      default: 0,
+    },
+    securityDepositHeld: {
+      type: Number,
+      default: 0,
+    },
+    pickupLocation: {
+      type: String,
+    },
     status: {
       type: String,
-      enum: ["Pending", "Completed", "Cancelled", "Confirmed"],
-      default: "Pending",
+      enum: ["Locked", "Pending", "Confirmed", "Completed", "Cancelled"],
+      default: "Locked",
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["Unpaid", "AdvancePaid", "FullyPaid", "Refunded", "PartialRefund", "NoRefund"],
+      default: "Unpaid",
+    },
+    lockedUntil: {
+      type: Date,
+    },
+    refundAmount: {
+      type: Number,
+      default: 0,
+    },
+    cancellationReason: {
+      type: String,
     },
   },
   { timestamps: true },

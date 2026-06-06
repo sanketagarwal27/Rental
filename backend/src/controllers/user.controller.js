@@ -370,18 +370,26 @@ export const getUserDashboardData = asyncHandler(async (req, res) => {
     })
     .populate({
       path: "myTrips",
-      options: { sort: { startDate: -1 } },
+      match: { status: { $nin: ["Locked", "Cancelled"] } },
+      options: { sort: { createdAt: -1 } },
       populate: {
         path: "vehicle",
       },
     })
     .populate({
       path: "myEarnings",
+      match: { status: { $nin: ["Locked", "Cancelled"] } },
       options: { sort: { createdAt: -1 } },
-      populate: {
-        path: "customer",
-        select: "name email phone avatar",
-      },
+      populate: [
+        {
+          path: "customer",
+          select: "name email phone avatar",
+        },
+        {
+          path: "vehicle",
+          select: "brand model year type images address pricePerDay",
+        },
+      ],
     });
 
   if (!userDashboard) {
@@ -390,9 +398,19 @@ export const getUserDashboardData = asyncHandler(async (req, res) => {
 
   const earningsBreakdown = userDashboard.myEarnings || [];
 
-  const totalPayoutEarned = earningsBreakdown
-    .filter((booking) => ["Confirmed", "Completed"].includes(booking.status))
-    .reduce((sum, booking) => sum + (booking.totalPrice || 0), 0);
+  const activeBookings = earningsBreakdown.filter((b) =>
+    ["Confirmed", "Completed"].includes(b.status)
+  );
+
+  // Net earnings = 95% host payout (after 5% platform commission)
+  const totalPayoutEarned = activeBookings.reduce(
+    (sum, b) => sum + (b.hostPayout || b.totalPrice * 0.95 || 0),
+    0
+  );
+  const totalPlatformFeeDeducted = activeBookings.reduce(
+    (sum, b) => sum + (b.platformFee || b.totalPrice * 0.05 || 0),
+    0
+  );
 
   const profileDetails = {
     _id: userDashboard._id,
@@ -408,12 +426,13 @@ export const getUserDashboardData = asyncHandler(async (req, res) => {
       200,
       {
         profile: profileDetails,
-        vehiclesHosted: userDashboard.myListedVehicles || [], // Cars they own
-        vehiclesRented: userDashboard.myTrips || [], // Trips they took
+        vehiclesHosted: userDashboard.myListedVehicles || [],
+        vehiclesRented: userDashboard.myTrips || [],
         financials: {
-          totalEarned: totalPayoutEarned,
+          totalEarned: Math.round(totalPayoutEarned),      // 95% net to host
+          platformFeeDeducted: Math.round(totalPlatformFeeDeducted), // 5% platform cut
           totalRentedOutCount: earningsBreakdown.length,
-          rentalBookingsList: earningsBreakdown, // Income ledger
+          rentalBookingsList: earningsBreakdown,
         },
       },
       "User dashboard profile data fetched successfully!",

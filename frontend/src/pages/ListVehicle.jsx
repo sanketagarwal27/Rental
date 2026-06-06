@@ -27,7 +27,7 @@ const STEPS = [
 ];
 
 const VEHICLE_TYPES = {
-  "2-Wheeler": ["Cruiser", "Sportbike", "Scooter", "Adventure"],
+  "2-Wheeler": ["Cruiser", "Sportbike", "Scooter", "Adventure", "Motorcycle"],
   "4-Wheeler": ["Sedan", "SUV", "Hatchback", "Truck"],
 };
 
@@ -251,7 +251,7 @@ const ListVehicle = () => {
       <Sidebar />
 
       {/* Main Content Area */}
-        <main className="flex-1 p-6 sm:p-10 lg:p-12 overflow-y-auto custom-scrollbar">
+        <main className="flex-1 p-6 pb-32 sm:p-10 lg:p-12 overflow-y-auto custom-scrollbar">
           {!user?.isVerifiedEmail || !user?.isVerifiedPhone ? (
             <div className="h-full flex items-center justify-center">
               <div className="max-w-md w-full bg-zinc-950 border border-zinc-800 rounded-3xl p-8 text-center space-y-6 shadow-2xl">

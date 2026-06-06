@@ -16,12 +16,14 @@ const TransactionSchema = new Schema(
       type: String,
       required: true,
       enum: [
-        "Charge", // Charging the renter for the base booking cost
-        "Security_Hold", // Authorizing/holding a security deposit upfront
-        "Hold_Release", // Releasing the security deposit back to the renter
-        "Overage_Fee", // Charging for extra mileage or late return
-        "Refund", // Returning money to the renter on cancellation
-        "Payout", // Sending the host their earned cut
+        "Advance_Charge",   // 25% token charge at booking confirmation
+        "Security_Hold",    // Security deposit hold (not charged, just held)
+        "Hold_Release",     // Security deposit hold released on cancellation
+        "Refund",           // Refund of advance on cancellation
+        "Platform_Fee",     // 5% commission charged to the platform owner's account
+        "Charge",           // Full/remaining charge (legacy / future use)
+        "Overage_Fee",      // Extra mileage / late return fee
+        "Payout",           // Host earning payout (95% of total after commission)
       ],
     },
     amount: {
@@ -31,7 +33,7 @@ const TransactionSchema = new Schema(
     },
     currency: {
       type: String,
-      default: "USD",
+      default: "INR",
       uppercase: true,
       trim: true,
     },
@@ -43,13 +45,17 @@ const TransactionSchema = new Schema(
     },
     gateway: {
       type: String,
-      default: "Stripe",
+      default: "Simulated",
     },
     gatewayPaymentIntentId: {
       type: String,
       trim: true,
     },
     paymentMethod: {
+      type: String,
+      trim: true,
+    },
+    note: {
       type: String,
       trim: true,
     },

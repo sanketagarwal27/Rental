@@ -247,7 +247,7 @@ const Profile = () => {
     <div className="flex min-h-screen bg-transparent text-zinc-100 font-sans selection:bg-blue-600/30">
       <Sidebar />
 
-      <main className="flex-1 p-8 overflow-y-auto max-w-5xl mx-auto">
+      <main className="flex-1 p-8 pb-32 lg:pb-8 overflow-y-auto max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
