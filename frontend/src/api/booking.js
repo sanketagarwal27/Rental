@@ -16,13 +16,27 @@ export const lockVehicle = async (vehicleId, startDate, endDate) => {
 };
 
 /**
- * Confirm a Locked booking (simulate payment capture).
+ * Create a Razorpay payment order for a Locked booking.
  * @param {string} bookingId
  */
-export const confirmBooking = async (bookingId) => {
+export const createPaymentOrder = async (bookingId) => {
+  const response = await api.post(
+    `/booking/payment-order/${bookingId}`,
+    {},
+    { withCredentials: true }
+  );
+  return response.data;
+};
+
+/**
+ * Confirm a Locked booking (verify Razorpay signature).
+ * @param {string} bookingId
+ * @param {object} paymentData - { razorpay_payment_id, razorpay_order_id, razorpay_signature }
+ */
+export const confirmBooking = async (bookingId, paymentData) => {
   const response = await api.post(
     `/booking/confirm/${bookingId}`,
-    {},
+    paymentData,
     { withCredentials: true }
   );
   return response.data;

@@ -86,18 +86,7 @@ const RenterView = ({
       if (tripFilter === "Cancelled") return getTripState(bk) === "Cancelled";
       return true;
     })
-    .sort((a, b) => {
-      const stateWeight = {
-        Ongoing: 1,
-        Upcoming: 2,
-        Completed: 3,
-        Cancelled: 4,
-      };
-      const weightDiff = stateWeight[getTripState(a)] - stateWeight[getTripState(b)];
-      if (weightDiff !== 0) return weightDiff;
-      // Sort by start date ascending (closest trips first)
-      return new Date(a.startDate) - new Date(b.startDate);
-    });
+    .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
 
   const handleCardClick = (e, bk) => {
     if (e.target.closest("button")) return;
@@ -365,14 +354,24 @@ const RenterView = ({
             </div>
           )}
           
-          {filteredSortedTrips.length > visibleTripsCount && (
-            <div className="flex justify-center pt-2">
-              <button
-                onClick={() => setVisibleTripsCount((prev) => prev + 5)}
-                className="text-xs font-semibold text-zinc-400 hover:text-zinc-200 bg-zinc-900/50 hover:bg-zinc-800 px-6 py-2 rounded-full border border-zinc-800 transition cursor-pointer"
-              >
-                View More Trips
-              </button>
+          {(filteredSortedTrips.length > visibleTripsCount || visibleTripsCount > 5) && (
+            <div className="flex justify-center pt-2 gap-4">
+              {filteredSortedTrips.length > visibleTripsCount && (
+                <button
+                  onClick={() => setVisibleTripsCount((prev) => prev + 5)}
+                  className="text-xs font-semibold text-zinc-400 hover:text-zinc-200 bg-zinc-900/50 hover:bg-zinc-800 px-6 py-2 rounded-full border border-zinc-800 transition cursor-pointer"
+                >
+                  View More Trips
+                </button>
+              )}
+              {visibleTripsCount > 5 && (
+                <button
+                  onClick={() => setVisibleTripsCount(5)}
+                  className="text-xs font-semibold text-zinc-400 hover:text-zinc-200 bg-zinc-900/50 hover:bg-zinc-800 px-6 py-2 rounded-full border border-zinc-800 transition cursor-pointer"
+                >
+                  Show Less
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -737,14 +736,24 @@ const HostView = ({
               </div>
             )}
             
-            {financials.rentalBookingsList?.length > visibleIncomingCount && (
-              <div className="flex justify-center pt-2">
-                <button
-                  onClick={() => setVisibleIncomingCount((prev) => prev + 5)}
-                  className="text-xs font-semibold text-zinc-400 hover:text-zinc-200 bg-zinc-900/50 hover:bg-zinc-800 px-6 py-2 rounded-full border border-zinc-800 transition cursor-pointer"
-                >
-                  View More Bookings
-                </button>
+            {(financials.rentalBookingsList?.length > visibleIncomingCount || visibleIncomingCount > 5) && (
+              <div className="flex justify-center pt-2 gap-4">
+                {financials.rentalBookingsList?.length > visibleIncomingCount && (
+                  <button
+                    onClick={() => setVisibleIncomingCount((prev) => prev + 5)}
+                    className="text-xs font-semibold text-zinc-400 hover:text-zinc-200 bg-zinc-900/50 hover:bg-zinc-800 px-6 py-2 rounded-full border border-zinc-800 transition cursor-pointer"
+                  >
+                    View More Bookings
+                  </button>
+                )}
+                {visibleIncomingCount > 5 && (
+                  <button
+                    onClick={() => setVisibleIncomingCount(5)}
+                    className="text-xs font-semibold text-zinc-400 hover:text-zinc-200 bg-zinc-900/50 hover:bg-zinc-800 px-6 py-2 rounded-full border border-zinc-800 transition cursor-pointer"
+                  >
+                    Show Less
+                  </button>
+                )}
               </div>
             )}
           </div>

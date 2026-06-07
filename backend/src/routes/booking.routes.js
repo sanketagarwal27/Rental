@@ -2,6 +2,7 @@ import { Router } from "express";
 import { verifyJwt } from "../middlewares/auth.middleware.js";
 import {
   lockVehicle,
+  createPaymentOrder,
   confirmBooking,
   cancelBooking,
   getMyBookings,
@@ -15,6 +16,7 @@ const router = Router();
 router.use(verifyJwt);
 
 router.post("/lock", lockVehicle);
+router.post("/payment-order/:bookingId", createPaymentOrder);
 router.post("/confirm/:bookingId", confirmBooking);
 router.post("/cancel/:bookingId", cancelBooking);
 router.post("/request-cancel/:bookingId", requestCancellation);

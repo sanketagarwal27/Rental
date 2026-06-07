@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
-import { confirmBooking, cancelBooking, lockVehicle } from "../api/booking";
+import { confirmBooking, cancelBooking, lockVehicle, createPaymentOrder } from "../api/booking";
 import { getVehicleById } from "../api/vehicle";
 import { toast } from "sonner";
 import {
@@ -109,31 +109,7 @@ const CountdownTimer = ({ lockedUntil, onExpire }) => {
   );
 };
 
-// ── Fake Card Input ───────────────────────────────────────────────────────────
-const CardInput = ({
-  label,
-  value,
-  onChange,
-  placeholder,
-  maxLength,
-  pattern,
-  type = "text",
-}) => (
-  <div className="flex flex-col gap-1.5">
-    <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-      {label}
-    </label>
-    <input
-      type={type}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      maxLength={maxLength}
-      pattern={pattern}
-      className="bg-zinc-800/60 border border-zinc-700/60 rounded-xl px-4 py-3 text-zinc-100 text-sm font-mono placeholder-zinc-600 focus:outline-none focus:border-blue-500/60 focus:bg-zinc-800 transition"
-    />
-  </div>
-);
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Component
@@ -162,14 +138,21 @@ const BookingPage = () => {
   const [dateConflict, setDateConflict] = useState(null); // array of conflicting date strings or null
 
   // Payment form state
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
-  const [cardName, setCardName] = useState("");
   const [paying, setPaying] = useState(false);
 
   // Confirmation result
   const [confirmResult, setConfirmResult] = useState(null);
+
+  // ── Load Razorpay Script ───────────────────────────────────────────────────
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
   const [cancelling, setCancelling] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
@@ -240,18 +223,7 @@ const BookingPage = () => {
     }
   }, [pickStart, pickEnd, vehicleInfo]);
 
-  // ── Format card number with spaces ────────────────────────────────────────
-  const handleCardNumberChange = (val) => {
-    const digits = val.replace(/\D/g, "").slice(0, 16);
-    setCardNumber(digits.replace(/(.{4})/g, "$1 ").trim());
-  };
 
-  const handleExpiryChange = (val) => {
-    const digits = val.replace(/\D/g, "").slice(0, 4);
-    if (digits.length > 2)
-      setCardExpiry(`${digits.slice(0, 2)}/${digits.slice(2)}`);
-    else setCardExpiry(digits);
-  };
 
   // ── Lock vehicle (check availability flow) ────────────────────────────────
   const handleLockAndBook = async () => {
@@ -287,35 +259,62 @@ const BookingPage = () => {
     }
   };
 
-  // ── Simulate payment ──────────────────────────────────────────────────────
+  // ── Payment with Razorpay ──────────────────────────────────────────────────
   const handlePay = async () => {
     if (!bookingData?.bookingId) return;
-    // Basic fake validation
-    const rawCard = cardNumber.replace(/\s/g, "");
-    if (
-      rawCard.length < 16 ||
-      !cardExpiry.includes("/") ||
-      cardCvv.length < 3 ||
-      !cardName.trim()
-    ) {
-      toast.error("Please fill in all card details.");
-      return;
-    }
     try {
       setPaying(true);
-      // Simulate network delay for realism
-      await new Promise((r) => setTimeout(r, 1500));
-      const res = await confirmBooking(bookingData.bookingId);
-      if (res?.success) {
-        setConfirmResult(res.data);
-        setStep("confirmed");
-        toast.success("Payment successful! Booking confirmed 🎉");
-      }
+
+      const orderRes = await createPaymentOrder(bookingData.bookingId);
+      if (!orderRes?.success) throw new Error("Could not create order");
+
+      const { orderId, amount, currency } = orderRes.data;
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_SyqAjPjjlhIZRr", // Using fallback if env not set
+        amount: amount,
+        currency: currency,
+        name: "Rental App",
+        description: "Vehicle Booking Payment",
+        order_id: orderId,
+        handler: async function (response) {
+          try {
+            const confirmRes = await confirmBooking(bookingData.bookingId, {
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            if (confirmRes?.success) {
+              setConfirmResult(confirmRes.data);
+              setStep("confirmed");
+              toast.success("Payment successful! Booking confirmed 🎉");
+            }
+          } catch (err) {
+            toast.error(err?.response?.data?.message || "Payment verification failed.");
+            setPaying(false);
+          }
+        },
+        modal: {
+          ondismiss: function () {
+            setPaying(false);
+            toast.info("Payment cancelled.");
+          }
+        },
+        theme: {
+          color: "#3B82F6"
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response){
+        toast.error(response.error.description || "Payment failed");
+        setPaying(false);
+      });
+      rzp.open();
     } catch (err) {
       toast.error(
-        err?.response?.data?.message || "Payment failed. Please try again.",
+        err?.response?.data?.message || err.message || "Payment initialization failed.",
       );
-    } finally {
       setPaying(false);
     }
   };
@@ -1088,11 +1087,11 @@ const BookingPage = () => {
               <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 space-y-5">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-zinc-200 text-sm uppercase tracking-wider">
-                    Card Details
+                    Complete Payment
                   </h3>
                   <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 bg-zinc-800/60 border border-zinc-700/40 px-2.5 py-1 rounded-full">
                     <Shield className="w-3 h-3 text-emerald-400" />
-                    Simulated • No real charge
+                    Secure Checkout
                   </div>
                 </div>
 
@@ -1117,65 +1116,10 @@ const BookingPage = () => {
                   </div>
                 )}
 
-                {/* Fake card visual */}
-                <div className="w-full aspect-[16/9] max-h-36 bg-gradient-to-br from-blue-700/60 via-blue-900/40 to-zinc-900 rounded-2xl border border-zinc-700/60 p-5 flex flex-col justify-between relative overflow-hidden">
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(59,130,246,0.2)_0%,_transparent_60%)]" />
-                  <div className="flex justify-between items-start relative z-10">
-                    <Zap className="w-6 h-6 text-blue-300 opacity-60" />
-                    <span className="text-[10px] font-mono text-blue-200/60 uppercase tracking-widest">
-                      SIMULATED CARD
-                    </span>
-                  </div>
-                  <div className="relative z-10">
-                    <p className="font-mono text-base text-zinc-200 tracking-[0.2em]">
-                      {cardNumber || "•••• •••• •••• ••••"}
-                    </p>
-                    <div className="flex justify-between text-[11px] text-zinc-400 mt-1">
-                      <span>{cardName || "CARDHOLDER NAME"}</span>
-                      <span>{cardExpiry || "MM/YY"}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <CardInput
-                    label="Card Number"
-                    value={cardNumber}
-                    onChange={handleCardNumberChange}
-                    placeholder="1234 5678 9012 3456"
-                    maxLength={19}
-                  />
-                  <CardInput
-                    label="Name on Card"
-                    value={cardName}
-                    onChange={setCardName}
-                    placeholder="John Smith"
-                  />
-                  <div className="grid grid-cols-2 gap-3">
-                    <CardInput
-                      label="Expiry"
-                      value={cardExpiry}
-                      onChange={handleExpiryChange}
-                      placeholder="MM/YY"
-                      maxLength={5}
-                    />
-                    <CardInput
-                      label="CVV"
-                      value={cardCvv}
-                      onChange={(v) =>
-                        setCardCvv(v.replace(/\D/g, "").slice(0, 3))
-                      }
-                      placeholder="•••"
-                      maxLength={3}
-                      type="password"
-                    />
-                  </div>
-                </div>
-
                 <div className="flex items-center gap-2 text-xs text-zinc-500 bg-zinc-950/20 border border-zinc-800 p-3 rounded-xl justify-center">
                   <Lock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                   <span>
-                    Your card details are safe with us. We use 256-bit SSL
+                    Your payment is secure. We use Razorpay with 256-bit SSL
                     encryption.
                   </span>
                 </div>
@@ -1196,7 +1140,7 @@ const BookingPage = () => {
                         bookingData?.advanceAmount +
                           bookingData?.securityDeposit,
                       )}{" "}
-                      Now
+                      with Razorpay
                     </>
                   )}
                 </button>

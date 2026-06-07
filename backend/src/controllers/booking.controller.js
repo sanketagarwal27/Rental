@@ -10,6 +10,8 @@ import {
   getRefundPolicy,
   cleanExpiredLocks,
 } from "../utils/bookingUtils.js";
+import Razorpay from "razorpay";
+import crypto from "crypto";
 
 // ─── Lock Vehicle (initiates 15-min hold) ────────────────────────────────────
 export const lockVehicle = asyncHandler(async (req, res) => {
@@ -159,9 +161,70 @@ export const lockVehicle = asyncHandler(async (req, res) => {
   );
 });
 
+// ─── Create Payment Order (Razorpay) ─────────────────────────────────────────
+export const createPaymentOrder = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+
+  const booking = await Booking.findOne({
+    _id: bookingId,
+    customer: req.user._id,
+    status: "Locked",
+  });
+
+  if (!booking) {
+    throw new ApiError(
+      404,
+      "Booking not found, already confirmed, or does not belong to you."
+    );
+  }
+
+  // Check if the 15-min lock has expired
+  if (booking.lockedUntil < new Date()) {
+    await cleanExpiredLocks();
+    throw new ApiError(
+      410,
+      "Your 15-minute reservation window has expired. Please search again and rebook."
+    );
+  }
+
+  const advanceAmount = Math.round(booking.totalPrice * 0.25);
+  const totalPayable = advanceAmount + booking.securityDepositHeld;
+
+  // Initialize Razorpay
+  const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_API_KEY,
+    key_secret: process.env.RAZORPAY_API_SECRET,
+  });
+
+  // Create Order
+  const options = {
+    amount: totalPayable * 100, // amount in the smallest currency unit (paise)
+    currency: "INR",
+    receipt: bookingId.toString(),
+  };
+
+  try {
+    const order = await razorpay.orders.create(options);
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          orderId: order.id,
+          amount: order.amount,
+          currency: order.currency,
+        },
+        "Payment order created successfully."
+      )
+    );
+  } catch (error) {
+    throw new ApiError(500, "Could not create Razorpay order.");
+  }
+});
+
 // ─── Confirm Booking (simulate payment capture) ───────────────────────────────
 export const confirmBooking = asyncHandler(async (req, res) => {
   const { bookingId } = req.params;
+  const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
 
   const booking = await Booking.findOne({
     _id: bookingId,
@@ -185,6 +248,20 @@ export const confirmBooking = asyncHandler(async (req, res) => {
     );
   }
 
+  if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+    throw new ApiError(400, "Payment details are missing.");
+  }
+
+  const body = razorpay_order_id + "|" + razorpay_payment_id;
+  const expectedSignature = crypto
+    .createHmac("sha256", process.env.RAZORPAY_API_SECRET)
+    .update(body.toString())
+    .digest("hex");
+
+  if (expectedSignature !== razorpay_signature) {
+    throw new ApiError(400, "Invalid payment signature.");
+  }
+
   const advanceAmount = Math.round(booking.totalPrice * 0.25);
 
   // Confirm the booking
@@ -202,8 +279,8 @@ export const confirmBooking = asyncHandler(async (req, res) => {
     amount: advanceAmount,
     currency: "INR",
     status: "Succeeded",
-    gateway: "Simulated",
-    gatewayPaymentIntentId: `SIM-${booking._id}-ADV`,
+    gateway: "Razorpay",
+    gatewayPaymentIntentId: razorpay_payment_id,
     note: `25% advance token for booking ${booking._id}`,
   });
 
@@ -215,8 +292,8 @@ export const confirmBooking = asyncHandler(async (req, res) => {
     amount: booking.securityDepositHeld,
     currency: "INR",
     status: "Succeeded",
-    gateway: "Simulated",
-    gatewayPaymentIntentId: `SIM-${booking._id}-HOLD`,
+    gateway: "Razorpay",
+    gatewayPaymentIntentId: `${razorpay_payment_id}_HOLD`,
     note: `Security deposit hold — released upon safe return of vehicle`,
   });
 
@@ -228,8 +305,8 @@ export const confirmBooking = asyncHandler(async (req, res) => {
     amount: booking.platformFee,
     currency: "INR",
     status: "Succeeded",
-    gateway: "Simulated",
-    gatewayPaymentIntentId: `SIM-${booking._id}-FEE`,
+    gateway: "Razorpay",
+    gatewayPaymentIntentId: `${razorpay_payment_id}_FEE`,
     note: `5% platform commission on total booking of ₹${booking.totalPrice}`,
   });
 
@@ -241,8 +318,8 @@ export const confirmBooking = asyncHandler(async (req, res) => {
     amount: booking.hostPayout,
     currency: "INR",
     status: "Pending", // Will be set to Succeeded when trip is Completed
-    gateway: "Simulated",
-    gatewayPaymentIntentId: `SIM-${booking._id}-PAY`,
+    gateway: "Razorpay",
+    gatewayPaymentIntentId: `${razorpay_payment_id}_PAY`,
     note: `Host payout (95% after 5% platform fee) — released on trip completion`,
   });
 
