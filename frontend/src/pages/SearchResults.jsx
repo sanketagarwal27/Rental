@@ -7,9 +7,24 @@ import { useLocation as useLocationCtx } from "../context/LocationContext";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import {
-  Car, MapPin, Star, Fuel, Users, ChevronRight, Loader2,
-  Search, SlidersHorizontal, Calendar, LocateFixed,
-  AlertTriangle, ArrowLeft, Zap, Clock, X, RefreshCw, Lock,
+  Car,
+  MapPin,
+  Star,
+  Fuel,
+  Users,
+  ChevronRight,
+  Loader2,
+  Search,
+  SlidersHorizontal,
+  Calendar,
+  LocateFixed,
+  AlertTriangle,
+  ArrowLeft,
+  Zap,
+  Clock,
+  X,
+  RefreshCw,
+  Lock,
 } from "lucide-react";
 
 // ── Fuel Colors ──────────────────────────────────────────────────────────────
@@ -21,16 +36,28 @@ const fuelColors = {
 };
 
 // ── Vehicle Card ─────────────────────────────────────────────────────────────
-const VehicleCard = ({ vehicle, altBadge, onViewReviews, searchStartDate, searchEndDate, onLocking }) => {
+const VehicleCard = ({
+  vehicle,
+  altBadge,
+  onViewReviews,
+  searchStartDate,
+  searchEndDate,
+  onLocking,
+}) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const fuelColor = fuelColors[vehicle.fuelType] || "text-zinc-400";
   const [locking, setLocking] = useState(false);
 
   const handleBooking = async () => {
-    if (!user) { toast.error("Please login to proceed with booking"); return; }
+    if (!user) {
+      toast.error("Please login to proceed with booking");
+      return;
+    }
     if (!user.isVerifiedEmail || !user.isVerifiedPhone) {
-      toast.error("Please verify your email and phone before booking.", { duration: 5000 });
+      toast.error("Please verify your email and phone before booking.", {
+        duration: 5000,
+      });
       return;
     }
 
@@ -44,13 +71,21 @@ const VehicleCard = ({ vehicle, altBadge, onViewReviews, searchStartDate, search
     try {
       setLocking(true);
       onLocking?.(true);
-      const res = await lockVehicle(vehicle._id, searchStartDate, searchEndDate);
+      const res = await lockVehicle(
+        vehicle._id,
+        searchStartDate,
+        searchEndDate,
+      );
       if (res?.success) {
-        toast.success("Vehicle reserved! You have 15 minutes to complete payment.");
+        toast.success(
+          "Vehicle reserved! You have 15 minutes to complete payment.",
+        );
         navigate(`/booking/${vehicle._id}`, { state: res.data });
       }
     } catch (err) {
-      const msg = err?.response?.data?.message || "Could not reserve vehicle. It may no longer be available.";
+      const msg =
+        err?.response?.data?.message ||
+        "Could not reserve vehicle. It may no longer be available.";
       toast.error(msg);
     } finally {
       setLocking(false);
@@ -63,17 +98,29 @@ const VehicleCard = ({ vehicle, altBadge, onViewReviews, searchStartDate, search
     const floor = Math.floor(rating);
     for (let i = 1; i <= 5; i++) {
       if (i <= floor) {
-        stars.push(<Star key={i} className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />);
+        stars.push(
+          <Star
+            key={i}
+            className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0"
+          />,
+        );
       } else if (i === floor + 1 && rating % 1 >= 0.5) {
-        stars.push(<Star key={i} className="w-3.5 h-3.5 text-amber-400 fill-amber-400 opacity-60 shrink-0" />);
+        stars.push(
+          <Star
+            key={i}
+            className="w-3.5 h-3.5 text-amber-400 fill-amber-400 opacity-60 shrink-0"
+          />,
+        );
       } else {
-        stars.push(<Star key={i} className="w-3.5 h-3.5 text-zinc-700 shrink-0" />);
+        stars.push(
+          <Star key={i} className="w-3.5 h-3.5 text-zinc-700 shrink-0" />,
+        );
       }
     }
     return <div className="flex items-center gap-0.5">{stars}</div>;
   };
 
-  const relevantBlockedDates = (vehicle.unavailableDates || []).filter(d => {
+  const relevantBlockedDates = (vehicle.unavailableDates || []).filter((d) => {
     if (!searchStartDate || !searchEndDate) return false;
     const dateVal = new Date(d);
     const start = new Date(searchStartDate);
@@ -85,15 +132,21 @@ const VehicleCard = ({ vehicle, altBadge, onViewReviews, searchStartDate, search
     <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl overflow-hidden hover:border-zinc-700 hover:bg-zinc-900/70 transition-all duration-200 group flex flex-col relative">
       {/* Alt Reason Badge */}
       {altBadge && (
-        <div className={`absolute top-3 left-3 z-10 flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full backdrop-blur-sm border ${
-          altBadge === "slightly_further"
-            ? "bg-blue-500/20 border-blue-500/30 text-blue-300"
-            : "bg-amber-500/20 border-amber-500/30 text-amber-300"
-        }`}>
+        <div
+          className={`absolute top-3 left-3 z-10 flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full backdrop-blur-sm border ${
+            altBadge === "slightly_further"
+              ? "bg-blue-500/20 border-blue-500/30 text-blue-300"
+              : "bg-amber-500/20 border-amber-500/30 text-amber-300"
+          }`}
+        >
           {altBadge === "slightly_further" ? (
-            <><MapPin className="w-2.5 h-2.5" /> Slightly further away</>
+            <>
+              <MapPin className="w-2.5 h-2.5" /> Slightly further away
+            </>
           ) : (
-            <><Clock className="w-2.5 h-2.5" /> Some dates unavailable</>
+            <>
+              <Clock className="w-2.5 h-2.5" /> Some dates unavailable
+            </>
           )}
         </div>
       )}
@@ -119,8 +172,12 @@ const VehicleCard = ({ vehicle, altBadge, onViewReviews, searchStartDate, search
       {/* Details */}
       <div className="p-4 flex flex-col gap-3 flex-1">
         <div>
-          <h4 className="font-bold text-zinc-100 text-sm leading-tight">{vehicle.brand} {vehicle.model}</h4>
-          <p className="text-xs text-zinc-500 mt-0.5">{vehicle.year} · {vehicle.category}</p>
+          <h4 className="font-bold text-zinc-100 text-sm leading-tight">
+            {vehicle.brand} {vehicle.model}
+          </h4>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            {vehicle.year} · {vehicle.category}
+          </p>
 
           {/* Ratings & Reviews */}
           <div className="flex items-center gap-2 mt-1.5">
@@ -134,16 +191,21 @@ const VehicleCard = ({ vehicle, altBadge, onViewReviews, searchStartDate, search
                 }}
                 className="text-[11px] text-blue-400 hover:text-blue-300 font-medium underline cursor-pointer"
               >
-                ({vehicle.totalReviews} {vehicle.totalReviews === 1 ? "review" : "reviews"})
+                ({vehicle.totalReviews}{" "}
+                {vehicle.totalReviews === 1 ? "review" : "reviews"})
               </button>
             ) : (
-              <span className="text-[11px] text-zinc-500 font-normal">No reviews yet</span>
+              <span className="text-[11px] text-zinc-500 font-normal">
+                No reviews yet
+              </span>
             )}
           </div>
         </div>
 
         <div className="flex flex-wrap gap-1.5">
-          <span className={`flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-800/60 border border-zinc-700/40 ${fuelColor}`}>
+          <span
+            className={`flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-800/60 border border-zinc-700/40 ${fuelColor}`}
+          >
             <Fuel className="w-3 h-3" /> {vehicle.fuelType}
           </span>
           <span className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-800/60 border border-zinc-700/40 text-zinc-400">
@@ -161,15 +223,28 @@ const VehicleCard = ({ vehicle, altBadge, onViewReviews, searchStartDate, search
 
         {relevantBlockedDates.length > 0 && (
           <div className="text-[10px] text-rose-450 bg-rose-500/10 border border-rose-500/20 px-2.5 py-1.5 rounded-xl font-medium leading-normal w-fit">
-            <span className="font-semibold block text-[9px] uppercase tracking-wider text-rose-500 mb-0.5">Conflicting Dates</span>
-            {relevantBlockedDates.slice(0, 3).map(d => new Date(d).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})).join(", ")}
-            {relevantBlockedDates.length > 3 && ` (+${relevantBlockedDates.length - 3} more)`}
+            <span className="font-semibold block text-[9px] uppercase tracking-wider text-rose-500 mb-0.5">
+              Conflicting Dates
+            </span>
+            {relevantBlockedDates
+              .slice(0, 3)
+              .map((d) =>
+                new Date(d).toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                }),
+              )
+              .join(", ")}
+            {relevantBlockedDates.length > 3 &&
+              ` (+${relevantBlockedDates.length - 3} more)`}
           </div>
         )}
 
         <div className="flex items-center justify-between mt-auto pt-1">
           <div>
-            <span className="text-base font-bold text-zinc-100">₹{vehicle.pricePerDay.toLocaleString()}</span>
+            <span className="text-base font-bold text-zinc-100">
+              ₹{vehicle.pricePerDay.toLocaleString()}
+            </span>
             <span className="text-xs text-zinc-500"> /day</span>
           </div>
           <button
@@ -180,9 +255,13 @@ const VehicleCard = ({ vehicle, altBadge, onViewReviews, searchStartDate, search
             {locking ? (
               <RefreshCw className="w-3 h-3 animate-spin" />
             ) : searchStartDate && searchEndDate ? (
-              <><Lock className="w-3 h-3" /> Book</>
+              <>
+                <Lock className="w-3 h-3" /> Book
+              </>
             ) : (
-              <>Check Availability <ChevronRight className="w-3 h-3" /></>
+              <>
+                Check Availability <ChevronRight className="w-3 h-3" />
+              </>
             )}
           </button>
         </div>
@@ -216,30 +295,42 @@ const geocodeLocation = async (locationText) => {
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locationText)}&format=json&limit=1`;
   const res = await fetch(url, { headers: { "Accept-Language": "en" } });
   const data = await res.json();
-  if (!data || data.length === 0) throw new Error("Location not found. Try a different city name.");
-  return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), display: data[0].display_name };
+  if (!data || data.length === 0)
+    throw new Error("Location not found. Try a different city name.");
+  return {
+    lat: parseFloat(data[0].lat),
+    lng: parseFloat(data[0].lon),
+    display: data[0].display_name,
+  };
 };
 
 // ── Reviews Generator helper ────────────────────────────────────────────────
 const generateMockReviews = (vehicle) => {
-  const reviewerNames = ["Rahul Sharma", "Amit Patel", "Sneha Reddy", "Vikram Singh", "Priya Nair", "Rohan Gupta"];
+  const reviewerNames = [
+    "Rahul Sharma",
+    "Amit Patel",
+    "Sneha Reddy",
+    "Vikram Singh",
+    "Priya Nair",
+    "Rohan Gupta",
+  ];
   const commentsByRating = {
     5: [
       "Absolutely perfect! Clean, fuel efficient, and runs extremely smoothly.",
       "The vehicle was in pristine condition. Host was very accommodating.",
       "Incredible experience! The power and comfort were outstanding. Highly recommend.",
-      "Smooth ride, easy pickup, and excellent mileage. 5 stars all the way!"
+      "Smooth ride, easy pickup, and excellent mileage. 5 stars all the way!",
     ],
     4: [
       "Great car, very comfortable. A minor scratch on the bumper but handled perfectly.",
       "Very reliable and clean. Would definitely rent again for my next trip.",
-      "Good performance and mileage. The host was helpful and polite."
+      "Good performance and mileage. The host was helpful and polite.",
     ],
     3: [
       "Decent ride, but the interior could have been slightly cleaner.",
       "Car runs fine, though it showed some age. Average experience.",
-      "Ac worked, driving was okay, but had a slight noise from front wheel."
-    ]
+      "Ac worked, driving was okay, but had a slight noise from front wheel.",
+    ],
   };
 
   const count = vehicle.totalReviews || 0;
@@ -248,15 +339,24 @@ const generateMockReviews = (vehicle) => {
 
   const list = [];
   for (let i = 0; i < count; i++) {
-    const rName = reviewerNames[(vehicle._id.charCodeAt(i % 24) + i) % reviewerNames.length];
-    const comment = comments[(vehicle._id.charCodeAt((i + 1) % 24) + i) % comments.length];
-    const rate = i === 0 ? Math.ceil(vehicle.averageRating) : Math.floor(vehicle.averageRating);
+    const rName =
+      reviewerNames[
+        (vehicle._id.charCodeAt(i % 24) + i) % reviewerNames.length
+      ];
+    const comment =
+      comments[(vehicle._id.charCodeAt((i + 1) % 24) + i) % comments.length];
+    const rate =
+      i === 0
+        ? Math.ceil(vehicle.averageRating)
+        : Math.floor(vehicle.averageRating);
     list.push({
       id: `${vehicle._id}-${i}`,
       name: rName,
       rating: Math.max(1, Math.min(5, rate)),
-      date: new Date(Date.now() - i * 4 * 24 * 60 * 60 * 1000 - 2 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-      comment: comment
+      date: new Date(
+        Date.now() - i * 4 * 24 * 60 * 60 * 1000 - 2 * 24 * 60 * 60 * 1000,
+      ).toLocaleDateString(),
+      comment: comment,
     });
   }
   return list;
@@ -269,10 +369,16 @@ const SearchResults = () => {
   const { coords, requestLocation } = useLocationCtx();
 
   // ── Search form state ────────────────────────────────────────────────────
-  const [locationText, setLocationText] = useState(searchParams.get("location") || "");
-  const [startDate, setStartDate] = useState(searchParams.get("startDate") || "");
+  const [locationText, setLocationText] = useState(
+    searchParams.get("location") || "",
+  );
+  const [startDate, setStartDate] = useState(
+    searchParams.get("startDate") || "",
+  );
   const [endDate, setEndDate] = useState(searchParams.get("endDate") || "");
-  const [radius, setRadius] = useState(parseInt(searchParams.get("radius") || "30"));
+  const [radius, setRadius] = useState(
+    parseInt(searchParams.get("radius") || "30"),
+  );
 
   // ── Filter states ────────────────────────────────────────────────────────
   const [sortByPrice, setSortByPrice] = useState("");
@@ -316,37 +422,42 @@ const SearchResults = () => {
   }, [coords, locationText]);
 
   // ── Run Search ───────────────────────────────────────────────────────────
-  const runSearch = useCallback(async (coordsToUse, pg = 1) => {
-    if (!coordsToUse) return;
-    setLoading(true);
-    setError(null);
-    setHasSearched(true);
+  const runSearch = useCallback(
+    async (coordsToUse, pg = 1) => {
+      if (!coordsToUse) return;
+      setLoading(true);
+      setError(null);
+      setHasSearched(true);
 
-    try {
-      const result = await searchVehicles({
-        lat: coordsToUse.lat,
-        lng: coordsToUse.lng,
-        radius,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        page: pg,
-      });
-      if (result?.success) {
-        setPrimaryVehicles(result.data.primary.vehicles);
-        setTotalPrimary(result.data.primary.total);
-        setTotalPages(result.data.primary.totalPages);
-        setAlternatives(result.data.alternatives || []);
-        setPage(pg);
+      try {
+        const result = await searchVehicles({
+          lat: coordsToUse.lat,
+          lng: coordsToUse.lng,
+          radius,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+          page: pg,
+        });
+        if (result?.success) {
+          setPrimaryVehicles(result.data.primary.vehicles);
+          setTotalPrimary(result.data.primary.total);
+          setTotalPages(result.data.primary.totalPages);
+          setAlternatives(result.data.alternatives || []);
+          setPage(pg);
+        }
+      } catch (err) {
+        const msg =
+          err.response?.data?.message ||
+          "Failed to fetch results. Please try again.";
+        setError(msg);
+        setPrimaryVehicles([]);
+        setAlternatives([]);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      const msg = err.response?.data?.message || "Failed to fetch results. Please try again.";
-      setError(msg);
-      setPrimaryVehicles([]);
-      setAlternatives([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [radius, startDate, endDate]);
+    },
+    [radius, startDate, endDate],
+  );
 
   // ── Handle form submit ───────────────────────────────────────────────────
   const handleSearch = async (e) => {
@@ -411,8 +522,10 @@ const SearchResults = () => {
           const c = { lat: geo.lat, lng: geo.lng };
           setResolvedCoords(c);
           runSearch(c, 1);
-        } catch (_) {}
-        finally { setGeocoding(false); }
+        } catch (_) {
+        } finally {
+          setGeocoding(false);
+        }
       })();
     }
   }, []); // eslint-disable-line
@@ -420,9 +533,15 @@ const SearchResults = () => {
   // ── Filter Logics ────────────────────────────────────────────────────────
   const filterVehicle = (v) => {
     if (minRating > 0 && (v.averageRating || 0) < minRating) return false;
-    if (selectedTypes.length > 0 && !selectedTypes.includes(v.type)) return false;
-    if (selectedFuels.length > 0 && !selectedFuels.includes(v.fuelType)) return false;
-    if (selectedTransmissions.length > 0 && !selectedTransmissions.includes(v.transmission)) return false;
+    if (selectedTypes.length > 0 && !selectedTypes.includes(v.type))
+      return false;
+    if (selectedFuels.length > 0 && !selectedFuels.includes(v.fuelType))
+      return false;
+    if (
+      selectedTransmissions.length > 0 &&
+      !selectedTransmissions.includes(v.transmission)
+    )
+      return false;
     return true;
   };
 
@@ -432,11 +551,17 @@ const SearchResults = () => {
     return 0;
   };
 
-  const filteredPrimary = primaryVehicles.filter(filterVehicle).sort(sortVehicles);
-  const filteredAlternatives = alternatives.filter(filterVehicle).sort(sortVehicles);
+  const filteredPrimary = primaryVehicles
+    .filter(filterVehicle)
+    .sort(sortVehicles);
+  const filteredAlternatives = alternatives
+    .filter(filterVehicle)
+    .sort(sortVehicles);
 
   const toggleFilter = (list, setList, val) => {
-    setList(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]);
+    setList((prev) =>
+      prev.includes(val) ? prev.filter((x) => x !== val) : [...prev, val],
+    );
   };
 
   const clearFilters = () => {
@@ -452,11 +577,23 @@ const SearchResults = () => {
     const floor = Math.floor(rating);
     for (let i = 1; i <= 5; i++) {
       if (i <= floor) {
-        stars.push(<Star key={i} className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />);
+        stars.push(
+          <Star
+            key={i}
+            className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0"
+          />,
+        );
       } else if (i === floor + 1 && rating % 1 >= 0.5) {
-        stars.push(<Star key={i} className="w-3.5 h-3.5 text-amber-400 fill-amber-400 opacity-60 shrink-0" />);
+        stars.push(
+          <Star
+            key={i}
+            className="w-3.5 h-3.5 text-amber-400 fill-amber-400 opacity-60 shrink-0"
+          />,
+        );
       } else {
-        stars.push(<Star key={i} className="w-3.5 h-3.5 text-zinc-700 shrink-0" />);
+        stars.push(
+          <Star key={i} className="w-3.5 h-3.5 text-zinc-700 shrink-0" />,
+        );
       }
     }
     return <div className="flex items-center gap-0.5">{stars}</div>;
@@ -479,8 +616,12 @@ const SearchResults = () => {
                 <ArrowLeft className="w-4 h-4" />
               </button>
               <div>
-                <h1 className="text-lg font-bold text-zinc-100 tracking-tight">Find a Vehicle</h1>
-                <p className="text-xs text-zinc-500">Search by location and travel dates</p>
+                <h1 className="text-lg font-bold text-zinc-100 tracking-tight">
+                  Find a Vehicle
+                </h1>
+                <p className="text-xs text-zinc-500">
+                  Search by location and travel dates
+                </p>
               </div>
             </div>
 
@@ -499,7 +640,13 @@ const SearchResults = () => {
                   className="bg-transparent outline-none w-full text-white placeholder:text-zinc-600 text-sm"
                 />
                 {locationText && (
-                  <button type="button" onClick={() => { setLocationText(""); setResolvedCoords(null); }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLocationText("");
+                      setResolvedCoords(null);
+                    }}
+                  >
                     <X className="w-3.5 h-3.5 text-zinc-600 hover:text-zinc-400" />
                   </button>
                 )}
@@ -525,10 +672,12 @@ const SearchResults = () => {
                     onChange={(e) => setStartDate(e.target.value)}
                     className="bg-transparent outline-none text-white w-32 text-sm [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                     style={{ colorScheme: "dark" }}
-                    placeholder="Start date"
+                    placeholder="Pickup date"
                   />
                 </label>
-                <span className="text-[10px] text-zinc-500 font-medium px-1">From date</span>
+                <span className="text-[10px] text-zinc-500 font-medium px-1">
+                  From date
+                </span>
               </div>
 
               {/* End date */}
@@ -542,27 +691,36 @@ const SearchResults = () => {
                     onChange={(e) => setEndDate(e.target.value)}
                     className="bg-transparent outline-none text-white w-32 text-sm [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                     style={{ colorScheme: "dark" }}
-                    placeholder="End date"
+                    placeholder="Return date"
                   />
                 </label>
-                <span className="text-[10px] text-zinc-500 font-medium px-1">To date</span>
+                <span className="text-[10px] text-zinc-500 font-medium px-1">
+                  To date
+                </span>
               </div>
 
               {/* Radius selector */}
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1.5 bg-zinc-950/70 border border-zinc-800 rounded-xl px-3.5 py-2.5">
-                  <SlidersHorizontal size={14} className="text-zinc-500 shrink-0" />
+                  <SlidersHorizontal
+                    size={14}
+                    className="text-zinc-500 shrink-0"
+                  />
                   <select
                     value={radius}
                     onChange={(e) => setRadius(parseInt(e.target.value))}
                     className="bg-transparent text-sm text-zinc-300 outline-none cursor-pointer"
                   >
-                    {[10, 20, 30, 50, 100].map(r => (
-                      <option key={r} value={r} className="bg-zinc-900">{r} km</option>
+                    {[10, 20, 30, 50, 100].map((r) => (
+                      <option key={r} value={r} className="bg-zinc-900">
+                        {r} km
+                      </option>
                     ))}
                   </select>
                 </div>
-                <span className="text-[10px] text-zinc-500 font-medium px-1">Search radius</span>
+                <span className="text-[10px] text-zinc-500 font-medium px-1">
+                  Search radius
+                </span>
               </div>
 
               {/* Submit */}
@@ -576,7 +734,11 @@ const SearchResults = () => {
                 ) : (
                   <Search className="w-4 h-4" />
                 )}
-                {geocoding ? "Locating…" : loading ? "Searching…" : "Search Fleet"}
+                {geocoding
+                  ? "Locating…"
+                  : loading
+                    ? "Searching…"
+                    : "Search Fleet"}
               </button>
             </form>
           </div>
@@ -584,7 +746,6 @@ const SearchResults = () => {
 
         {/* ── Page Body ─────────────────────────────────────────────────── */}
         <div className="flex-1 p-6 pb-32 lg:pb-6 max-w-7xl w-full mx-auto space-y-10">
-
           {/* ── Initial / pre-search state ─────────────────────────────── */}
           {!hasSearched && !loading && (
             <div className="flex flex-col items-center justify-center py-24 text-center gap-5">
@@ -592,9 +753,12 @@ const SearchResults = () => {
                 <Search className="w-9 h-9 text-blue-400" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-zinc-200">Start your search</h2>
+                <h2 className="text-2xl font-bold text-zinc-200">
+                  Start your search
+                </h2>
                 <p className="text-zinc-500 text-sm mt-2 max-w-sm">
-                  Enter a city, locality or use your current location to find available vehicles near you.
+                  Enter a city, locality or use your current location to find
+                  available vehicles near you.
                 </p>
               </div>
               <button
@@ -611,7 +775,9 @@ const SearchResults = () => {
             <div className="space-y-6">
               <div className="h-5 bg-zinc-800/60 rounded w-48 animate-pulse" />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <SkeletonCard key={i} />
+                ))}
               </div>
             </div>
           )}
@@ -623,11 +789,15 @@ const SearchResults = () => {
                 <AlertTriangle className="w-8 h-8 text-rose-400" />
               </div>
               <div>
-                <h3 className="font-semibold text-zinc-200">Something went wrong</h3>
+                <h3 className="font-semibold text-zinc-200">
+                  Something went wrong
+                </h3>
                 <p className="text-sm text-zinc-500 mt-1 max-w-sm">{error}</p>
               </div>
               <button
-                onClick={() => resolvedCoords && runSearch(resolvedCoords, page)}
+                onClick={() =>
+                  resolvedCoords && runSearch(resolvedCoords, page)
+                }
                 className="flex items-center gap-2 px-5 py-2.5 bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 rounded-xl text-sm font-medium transition cursor-pointer"
               >
                 <RefreshCw className="w-4 h-4" /> Try Again
@@ -641,8 +811,14 @@ const SearchResults = () => {
               {/* ── Sidebar Filters ───────────────────────────────────────── */}
               <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-5 space-y-6 lg:sticky lg:top-28">
                 <div className="flex items-center justify-between border-b border-zinc-800/60 pb-3">
-                  <span className="font-bold text-sm text-zinc-200 uppercase tracking-wider">Filters</span>
-                  {(sortByPrice || minRating > 0 || selectedTypes.length > 0 || selectedFuels.length > 0 || selectedTransmissions.length > 0) && (
+                  <span className="font-bold text-sm text-zinc-200 uppercase tracking-wider">
+                    Filters
+                  </span>
+                  {(sortByPrice ||
+                    minRating > 0 ||
+                    selectedTypes.length > 0 ||
+                    selectedFuels.length > 0 ||
+                    selectedTransmissions.length > 0) && (
                     <button
                       onClick={clearFilters}
                       className="text-xs text-blue-400 hover:text-blue-300 font-medium cursor-pointer"
@@ -654,21 +830,31 @@ const SearchResults = () => {
 
                 {/* Price Sorting */}
                 <div className="space-y-2">
-                  <span className="text-xs font-semibold text-zinc-400 block">Sort By Price</span>
+                  <span className="text-xs font-semibold text-zinc-400 block">
+                    Sort By Price
+                  </span>
                   <select
                     value={sortByPrice}
                     onChange={(e) => setSortByPrice(e.target.value)}
                     className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-300 outline-none cursor-pointer hover:border-zinc-700 transition"
                   >
-                    <option value="" className="bg-zinc-900">Best Match (Default)</option>
-                    <option value="low-to-high" className="bg-zinc-900">Price: Low to High</option>
-                    <option value="high-to-low" className="bg-zinc-900">Price: High to Low</option>
+                    <option value="" className="bg-zinc-900">
+                      Best Match (Default)
+                    </option>
+                    <option value="low-to-high" className="bg-zinc-900">
+                      Price: Low to High
+                    </option>
+                    <option value="high-to-low" className="bg-zinc-900">
+                      Price: High to Low
+                    </option>
                   </select>
                 </div>
 
                 {/* Minimum Star Rating */}
                 <div className="space-y-2">
-                  <span className="text-xs font-semibold text-zinc-400 block">Minimum Rating</span>
+                  <span className="text-xs font-semibold text-zinc-400 block">
+                    Minimum Rating
+                  </span>
                   <div className="grid grid-cols-4 gap-1.5">
                     {[0, 3, 4, 4.5].map((stars) => (
                       <button
@@ -681,7 +867,14 @@ const SearchResults = () => {
                             : "bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:border-zinc-700"
                         }`}
                       >
-                        {stars === 0 ? "Any" : <>{stars} <Star className="w-3 h-3 fill-amber-400 text-amber-400" /></>}
+                        {stars === 0 ? (
+                          "Any"
+                        ) : (
+                          <>
+                            {stars}{" "}
+                            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                          </>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -689,13 +882,30 @@ const SearchResults = () => {
 
                 {/* Vehicle Type */}
                 <div className="space-y-2">
-                  <span className="text-xs font-semibold text-zinc-400 block">Vehicle Type</span>
+                  <span className="text-xs font-semibold text-zinc-400 block">
+                    Vehicle Type
+                  </span>
                   <div className="flex flex-wrap gap-1.5">
-                    {["Sedan", "SUV", "Hatchback", "Truck", "Cruiser", "Sportbike", "Scooter", "Adventure", "Motorcycle"].map((t) => (
+                    {[
+                      "Sedan",
+                      "SUV",
+                      "Hatchback",
+                      "Truck",
+                      "Premium",
+                      "Luxury",
+                      "Sports",
+                      "Cruiser",
+                      "SportBike",
+                      "Scooter",
+                      "Adventure",
+                      "Commuter",
+                    ].map((t) => (
                       <button
                         key={t}
                         type="button"
-                        onClick={() => toggleFilter(selectedTypes, setSelectedTypes, t)}
+                        onClick={() =>
+                          toggleFilter(selectedTypes, setSelectedTypes, t)
+                        }
                         className={`px-3 py-1.5 rounded-lg border text-xs transition cursor-pointer ${
                           selectedTypes.includes(t)
                             ? "bg-blue-600/20 border-blue-500 text-blue-300 font-semibold"
@@ -710,13 +920,17 @@ const SearchResults = () => {
 
                 {/* Fuel Type */}
                 <div className="space-y-2">
-                  <span className="text-xs font-semibold text-zinc-400 block">Fuel Type</span>
+                  <span className="text-xs font-semibold text-zinc-400 block">
+                    Fuel Type
+                  </span>
                   <div className="grid grid-cols-2 gap-1.5">
                     {["Petrol", "Diesel", "Hybrid", "Electric"].map((f) => (
                       <button
                         key={f}
                         type="button"
-                        onClick={() => toggleFilter(selectedFuels, setSelectedFuels, f)}
+                        onClick={() =>
+                          toggleFilter(selectedFuels, setSelectedFuels, f)
+                        }
                         className={`py-1.5 rounded-lg border text-xs transition cursor-pointer ${
                           selectedFuels.includes(f)
                             ? "bg-blue-600/20 border-blue-500 text-blue-300 font-semibold"
@@ -731,13 +945,21 @@ const SearchResults = () => {
 
                 {/* Transmission */}
                 <div className="space-y-2">
-                  <span className="text-xs font-semibold text-zinc-400 block">Transmission</span>
+                  <span className="text-xs font-semibold text-zinc-400 block">
+                    Transmission
+                  </span>
                   <div className="grid grid-cols-2 gap-1.5">
                     {["Automatic", "Manual"].map((tr) => (
                       <button
                         key={tr}
                         type="button"
-                        onClick={() => toggleFilter(selectedTransmissions, setSelectedTransmissions, tr)}
+                        onClick={() =>
+                          toggleFilter(
+                            selectedTransmissions,
+                            setSelectedTransmissions,
+                            tr,
+                          )
+                        }
                         className={`py-1.5 rounded-lg border text-xs transition cursor-pointer ${
                           selectedTransmissions.includes(tr)
                             ? "bg-blue-600/20 border-blue-500 text-blue-300 font-semibold"
@@ -761,12 +983,14 @@ const SearchResults = () => {
                         <Zap className="w-4 h-4 text-blue-400" />
                         Search Results
                         <span className="text-sm font-normal text-zinc-500 ml-1">
-                          ({filteredPrimary.length} of {totalPrimary} shown within {radius} km)
+                          ({filteredPrimary.length} of {totalPrimary} shown
+                          within {radius} km)
                         </span>
                       </h2>
                       {startDate && endDate && (
                         <p className="text-xs text-zinc-500 mt-0.5">
-                          Available: {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}
+                          Available: {new Date(startDate).toLocaleDateString()}{" "}
+                          to {new Date(endDate).toLocaleDateString()}
                         </p>
                       )}
                     </div>
@@ -790,9 +1014,12 @@ const SearchResults = () => {
                         <Car className="w-8 h-8 text-zinc-600" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-zinc-300 text-sm">No vehicles match filters</h3>
+                        <h3 className="font-semibold text-zinc-300 text-sm">
+                          No vehicles match filters
+                        </h3>
                         <p className="text-xs text-zinc-500 mt-1">
-                          Try adjusting your filters or expanding the search criteria.
+                          Try adjusting your filters or expanding the search
+                          criteria.
                         </p>
                       </div>
                     </div>
@@ -808,7 +1035,9 @@ const SearchResults = () => {
                       >
                         Previous
                       </button>
-                      <span className="text-xs text-zinc-500 px-3">Page {page} of {totalPages}</span>
+                      <span className="text-xs text-zinc-500 px-3">
+                        Page {page} of {totalPages}
+                      </span>
                       <button
                         disabled={page === totalPages}
                         onClick={() => handlePageChange(page + 1)}
@@ -828,10 +1057,13 @@ const SearchResults = () => {
                         <div className="w-5 h-5 rounded-md bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
                           <AlertTriangle className="w-3 h-3 text-amber-400" />
                         </div>
-                        <h2 className="text-base font-bold text-zinc-200">Alternative Options</h2>
+                        <h2 className="text-base font-bold text-zinc-200">
+                          Alternative Options
+                        </h2>
                       </div>
                       <p className="text-xs text-zinc-500 ml-7">
-                        Vehicles slightly outside your search radius or with minor date conflicts — worth considering!
+                        Vehicles slightly outside your search radius or with
+                        minor date conflicts — worth considering!
                       </p>
                     </div>
 
@@ -862,8 +1094,12 @@ const SearchResults = () => {
             {/* Modal Header */}
             <div className="p-5 border-b border-zinc-800/80 flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-zinc-100 text-base">Reviews & Ratings</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">{activeReviewVehicle.brand} {activeReviewVehicle.model}</p>
+                <h3 className="font-bold text-zinc-100 text-base">
+                  Reviews & Ratings
+                </h3>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {activeReviewVehicle.brand} {activeReviewVehicle.model}
+                </p>
               </div>
               <button
                 onClick={() => setActiveReviewVehicle(null)}
@@ -876,24 +1112,37 @@ const SearchResults = () => {
             <div className="p-5 overflow-y-auto space-y-4 flex-1">
               <div className="flex items-center gap-4 bg-zinc-950/40 border border-zinc-800/40 p-4 rounded-xl">
                 <div className="text-center">
-                  <div className="text-3xl font-extrabold text-amber-400">{activeReviewVehicle.averageRating.toFixed(1)}</div>
-                  <div className="text-[10px] text-zinc-500 font-medium mt-0.5">out of 5.0</div>
+                  <div className="text-3xl font-extrabold text-amber-400">
+                    {activeReviewVehicle.averageRating.toFixed(1)}
+                  </div>
+                  <div className="text-[10px] text-zinc-500 font-medium mt-0.5">
+                    out of 5.0
+                  </div>
                 </div>
                 <div className="h-10 w-[1px] bg-zinc-800" />
                 <div>
                   <div className="flex items-center gap-1">
                     {renderStars(activeReviewVehicle.averageRating)}
                   </div>
-                  <div className="text-xs text-zinc-400 mt-1 font-medium">{activeReviewVehicle.totalReviews} verified rental reviews</div>
+                  <div className="text-xs text-zinc-400 mt-1 font-medium">
+                    {activeReviewVehicle.totalReviews} verified rental reviews
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-3 pt-2">
                 {generateMockReviews(activeReviewVehicle).map((rev) => (
-                  <div key={rev.id} className="border-b border-zinc-800/40 pb-3 last:border-0 last:pb-0">
+                  <div
+                    key={rev.id}
+                    className="border-b border-zinc-800/40 pb-3 last:border-0 last:pb-0"
+                  >
                     <div className="flex items-center justify-between">
-                      <div className="font-semibold text-zinc-200 text-xs">{rev.name}</div>
-                      <div className="text-[10px] text-zinc-500">{rev.date}</div>
+                      <div className="font-semibold text-zinc-200 text-xs">
+                        {rev.name}
+                      </div>
+                      <div className="text-[10px] text-zinc-500">
+                        {rev.date}
+                      </div>
                     </div>
                     <div className="flex items-center gap-1 mt-1">
                       {renderStars(rev.rating)}

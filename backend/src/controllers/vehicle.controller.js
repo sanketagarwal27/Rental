@@ -6,6 +6,36 @@ import ApiResponse from "../utils/ApiResponse.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { cleanExpiredLocks, getDatesBetween } from "../utils/bookingUtils.js";
 
+export const updateVehicleDetails = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { pricePerDay, features, odometer } = req.body;
+
+  const vehicle = await Vehicle.findOne({ _id: id, provider: req.user._id });
+  if (!vehicle) {
+    throw new ApiError(404, "Vehicle not found or you are not authorized to update it.");
+  }
+
+  if (pricePerDay !== undefined) {
+    vehicle.pricePerDay = parseFloat(pricePerDay);
+  }
+  if (features !== undefined) {
+    let featuresList = [];
+    if (Array.isArray(features)) {
+      featuresList = features;
+    } else {
+      featuresList = String(features).split(",").map((f) => f.trim()).filter((f) => f);
+    }
+    vehicle.features = featuresList;
+  }
+  if (odometer !== undefined) {
+    vehicle.odometer = parseInt(odometer);
+  }
+
+  await vehicle.save();
+
+  return res.status(200).json(new ApiResponse(200, vehicle, "Vehicle details updated successfully."));
+});
+
 export const getNearbyVehicles = asyncHandler(async (req, res) => {
   const { lat, lng, radius = 30, page = 1, limit = 12 } = req.query;
 
@@ -505,5 +535,30 @@ export const getVehicleById = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, vehicle, "Vehicle fetched successfully."));
+});
+
+// ─── Delete Vehicle ───────────────────────────────────────────────────────────
+export const deleteVehicle = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const vehicle = await Vehicle.findOne({ _id: id, provider: req.user._id, isDeleted: false });
+  if (!vehicle) {
+    throw new ApiError(404, "Vehicle not found or already deleted.");
+  }
+
+  // Check for active bookings
+  const activeBookings = await Booking.find({
+    vehicle: id,
+    status: { $in: ["Locked", "Pending", "Confirmed"] }
+  });
+
+  if (activeBookings.length > 0) {
+    throw new ApiError(400, "Cannot delete this vehicle because it has active bookings. Please request cancellation for those bookings first.");
+  }
+
+  vehicle.isDeleted = true;
+  await vehicle.save();
+
+  return res.status(200).json(new ApiResponse(200, null, "Vehicle successfully deleted."));
 });
 

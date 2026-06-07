@@ -53,9 +53,51 @@ const RenterView = ({
   vehiclesRented,
   onCancelBooking,
   cancellingId,
+  onRejectCancellation,
+  rejectingId,
   onSelectBooking,
 }) => {
   const navigate = useNavigate();
+  const [tripFilter, setTripFilter] = useState("All");
+  const [visibleTripsCount, setVisibleTripsCount] = useState(5);
+
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  const getTripState = (bk) => {
+    if (bk.status === "Cancelled" || bk.status === "Rejected") return "Cancelled";
+    if (bk.status === "Completed") return "Completed";
+    
+    const start = new Date(bk.startDate);
+    start.setUTCHours(0, 0, 0, 0);
+    const end = new Date(bk.endDate);
+    end.setUTCHours(0, 0, 0, 0);
+    
+    if (start > today) return "Upcoming";
+    if (end < today) return "Completed";
+    return "Ongoing";
+  };
+
+  const filteredSortedTrips = [...vehiclesRented]
+    .filter((bk) => {
+      if (tripFilter === "All") return true;
+      if (tripFilter === "Ongoing") return getTripState(bk) === "Ongoing";
+      if (tripFilter === "Upcoming") return getTripState(bk) === "Upcoming";
+      if (tripFilter === "Cancelled") return getTripState(bk) === "Cancelled";
+      return true;
+    })
+    .sort((a, b) => {
+      const stateWeight = {
+        Ongoing: 1,
+        Upcoming: 2,
+        Completed: 3,
+        Cancelled: 4,
+      };
+      const weightDiff = stateWeight[getTripState(a)] - stateWeight[getTripState(b)];
+      if (weightDiff !== 0) return weightDiff;
+      // Sort by start date ascending (closest trips first)
+      return new Date(a.startDate) - new Date(b.startDate);
+    });
 
   const handleCardClick = (e, bk) => {
     if (e.target.closest("button")) return;
@@ -156,15 +198,25 @@ const RenterView = ({
             <h3 className="font-semibold text-base text-zinc-200">
               My Rental Trips
             </h3>
+            <select
+              value={tripFilter}
+              onChange={(e) => setTripFilter(e.target.value)}
+              className="bg-zinc-800/80 border border-zinc-700/60 rounded-xl px-3 py-1.5 text-zinc-300 text-xs font-medium focus:outline-none focus:border-blue-500/60 transition cursor-pointer"
+            >
+              <option value="All">All Trips</option>
+              <option value="Ongoing">Ongoing</option>
+              <option value="Upcoming">Upcoming</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
           </div>
-          {vehiclesRented.length === 0 ? (
+          {filteredSortedTrips.length === 0 ? (
             <div className="border border-dashed border-zinc-800 rounded-2xl p-8 text-center text-zinc-500 text-sm">
               <Car className="w-8 h-8 text-zinc-650 mx-auto mb-2" />
               You haven't booked any rental trips yet.
             </div>
           ) : (
             <div className="border border-zinc-900 bg-zinc-900/10 rounded-2xl overflow-hidden divide-y divide-zinc-900">
-              {vehiclesRented.map((bk, i) => (
+              {filteredSortedTrips.slice(0, visibleTripsCount).map((bk, i) => (
                 <div
                   key={i}
                   onClick={(e) => handleCardClick(e, bk)}
@@ -173,7 +225,10 @@ const RenterView = ({
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-start gap-4">
                       <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 shrink-0">
-                        <Car className="w-5 h-5" />
+                        <img
+                          className="object-cover w-full h-full"
+                          src={bk.vehicle?.images?.[0]}
+                        />
                       </div>
                       <div>
                         <h4 className="font-semibold text-sm text-zinc-200">
@@ -251,28 +306,73 @@ const RenterView = ({
                       {bk.cancellationReason && (
                         <div className="text-rose-450/90 flex items-start gap-1 mt-1.5">
                           <AlertCircle className="w-3 h-3 text-rose-450 shrink-0 mt-0.5" />
-                          <span>Cancellation Reason: {bk.cancellationReason}</span>
+                          <span>
+                            Cancellation Reason: {bk.cancellationReason}
+                          </span>
                         </div>
                       )}
                     </div>
                   )}
 
-                  {/* Cancel button */}
+                  {/* Cancel button / Cancellation Request */}
                   {bk.status === "Confirmed" && (
-                    <div className="ml-14">
-                      <button
-                        onClick={() => onCancelBooking(bk._id, "renter")}
-                        disabled={cancellingId === bk._id}
-                        className="text-xs text-rose-400 hover:text-rose-300 border border-rose-500/20 hover:border-rose-500/40 bg-rose-500/5 hover:bg-rose-500/10 px-3 py-1.5 rounded-lg transition cursor-pointer disabled:opacity-50"
-                      >
-                        {cancellingId === bk._id
-                          ? "Cancelling…"
-                          : "Cancel Booking"}
-                      </button>
+                    <div className="ml-14 flex flex-col items-start gap-2">
+                      {bk.cancellationRequestByHost?.isRequested ? (
+                        <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 w-full space-y-2">
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-xs font-semibold text-rose-300">
+                                The host has requested you to cancel this booking
+                              </p>
+                              <p className="text-[11px] text-rose-400 mt-1">
+                                Reason: <span className="font-semibold">{bk.cancellationRequestByHost.reason}</span>
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => onCancelBooking(bk._id, "renter")}
+                              disabled={cancellingId === bk._id || rejectingId === bk._id}
+                              className="text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded-lg transition shadow-md shadow-rose-600/20 cursor-pointer disabled:opacity-50 flex-1"
+                            >
+                              {cancellingId === bk._id ? "Processing…" : "Accept (100% Refund)"}
+                            </button>
+                            <button
+                              onClick={() => onRejectCancellation(bk._id)}
+                              disabled={cancellingId === bk._id || rejectingId === bk._id}
+                              className="text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg transition border border-zinc-700 cursor-pointer disabled:opacity-50 flex-1"
+                            >
+                              {rejectingId === bk._id ? "Rejecting…" : "Reject Cancellation"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => onCancelBooking(bk._id, "renter")}
+                          disabled={cancellingId === bk._id}
+                          className="text-xs text-rose-400 hover:text-rose-300 border border-rose-500/20 hover:border-rose-500/40 bg-rose-500/5 hover:bg-rose-500/10 px-3 py-1.5 rounded-lg transition cursor-pointer disabled:opacity-50"
+                        >
+                          {cancellingId === bk._id
+                            ? "Cancelling…"
+                            : "Cancel Booking"}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
               ))}
+            </div>
+          )}
+          
+          {filteredSortedTrips.length > visibleTripsCount && (
+            <div className="flex justify-center pt-2">
+              <button
+                onClick={() => setVisibleTripsCount((prev) => prev + 5)}
+                className="text-xs font-semibold text-zinc-400 hover:text-zinc-200 bg-zinc-900/50 hover:bg-zinc-800 px-6 py-2 rounded-full border border-zinc-800 transition cursor-pointer"
+              >
+                View More Trips
+              </button>
             </div>
           )}
         </div>
@@ -331,9 +431,15 @@ const RenterView = ({
   );
 };
 
-const HostView = ({ user, vehiclesHosted, financials, onCancelBooking, cancellingId }) => {
+const HostView = ({
+  user,
+  vehiclesHosted,
+  financials,
+  onCancelBooking,
+  cancellingId,
+}) => {
   const navigate = useNavigate();
-
+  const [visibleIncomingCount, setVisibleIncomingCount] = useState(5);
 
   const stats = [
     {
@@ -572,7 +678,7 @@ const HostView = ({ user, vehiclesHosted, financials, onCancelBooking, cancellin
               </div>
             ) : (
               <div className="space-y-3">
-                {financials.rentalBookingsList?.slice(0, 5).map((req, i) => {
+                {financials.rentalBookingsList?.slice(0, visibleIncomingCount).map((req, i) => {
                   const payout =
                     req.hostPayout ?? Math.round((req.totalPrice || 0) * 0.95);
                   return (
@@ -614,18 +720,31 @@ const HostView = ({ user, vehiclesHosted, financials, onCancelBooking, cancellin
                         <div className="flex justify-end pt-1">
                           <button
                             onClick={() => onCancelBooking(req._id, "host")}
-                            disabled={cancellingId === req._id}
+                            disabled={cancellingId === req._id || req.cancellationRequestByHost?.isRequested}
                             className="text-[11px] text-rose-400 hover:text-rose-300 border border-rose-500/20 hover:border-rose-500/40 bg-rose-500/5 hover:bg-rose-500/10 px-2.5 py-1 rounded-lg transition cursor-pointer disabled:opacity-50 font-medium"
                           >
-                            {cancellingId === req._id
-                              ? "Cancelling…"
-                              : "Cancel Booking"}
+                            {req.cancellationRequestByHost?.isRequested 
+                               ? "Cancellation Requested" 
+                               : cancellingId === req._id
+                                 ? "Processing…"
+                                 : "Request Cancellation"}
                           </button>
                         </div>
                       )}
                     </div>
                   );
                 })}
+              </div>
+            )}
+            
+            {financials.rentalBookingsList?.length > visibleIncomingCount && (
+              <div className="flex justify-center pt-2">
+                <button
+                  onClick={() => setVisibleIncomingCount((prev) => prev + 5)}
+                  className="text-xs font-semibold text-zinc-400 hover:text-zinc-200 bg-zinc-900/50 hover:bg-zinc-800 px-6 py-2 rounded-full border border-zinc-800 transition cursor-pointer"
+                >
+                  View More Bookings
+                </button>
               </div>
             )}
           </div>
@@ -664,6 +783,7 @@ const Dashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState(null);
+  const [rejectingId, setRejectingId] = useState(null);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
@@ -708,15 +828,24 @@ const Dashboard = () => {
         reason: "",
       });
       const { toast } = await import("sonner");
-      const { cancelBooking: cancelApi } = await import("../api/booking");
+      const { cancelBooking, requestCancellation } = await import("../api/booking");
 
       const cancelReason =
         mode === "host"
-          ? (selectedReason === "Other" ? reason.trim() : selectedReason)
+          ? selectedReason === "Other"
+            ? reason.trim()
+            : selectedReason
           : "Cancelled by customer from dashboard";
-      const res = await cancelApi(bookingId, cancelReason);
+      
+      let res;
+      if (mode === "host") {
+        res = await requestCancellation(bookingId, cancelReason);
+        toast.success(res.message || "Cancellation request sent.");
+      } else {
+        res = await cancelBooking(bookingId, cancelReason);
+        toast.success(res.message || "Booking cancelled successfully.");
+      }
 
-      toast.success(res.message || "Booking cancelled successfully.");
       fetchDashboard();
     } catch (err) {
       const { toast } = await import("sonner");
@@ -726,6 +855,22 @@ const Dashboard = () => {
       );
     } finally {
       setCancellingId(null);
+    }
+  };
+
+  const handleRejectCancellation = async (bookingId) => {
+    try {
+      setRejectingId(bookingId);
+      const { toast } = await import("sonner");
+      const { rejectCancellation } = await import("../api/booking");
+      const res = await rejectCancellation(bookingId);
+      toast.success(res.message || "Cancellation rejected");
+      fetchDashboard();
+    } catch (err) {
+      const { toast } = await import("sonner");
+      toast.error(err?.response?.data?.message || "Failed to reject cancellation");
+    } finally {
+      setRejectingId(null);
     }
   };
 
@@ -814,6 +959,8 @@ const Dashboard = () => {
               vehiclesRented={dashboardData?.vehiclesRented || []}
               onCancelBooking={onCancelBooking}
               cancellingId={cancellingId}
+              onRejectCancellation={handleRejectCancellation}
+              rejectingId={rejectingId}
               onSelectBooking={setSelectedBooking}
             />
           ) : (
@@ -842,11 +989,11 @@ const Dashboard = () => {
               <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-bold text-zinc-100 text-base">
-                  Cancel Booking
+                  {confirmModal.mode === "host" ? "Request Cancellation" : "Cancel Booking"}
                 </h3>
                 <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
                   {confirmModal.mode === "host"
-                    ? "Are you sure you want to cancel this booking? The renter will receive a 100% full refund of their payment."
+                    ? "Provide a reason to the guest why they need to cancel this booking."
                     : "Are you sure you want to cancel your booking? Refund will be calculated based on how close you are to the start date."}
                 </p>
               </div>
@@ -868,10 +1015,18 @@ const Dashboard = () => {
                     }
                     className="bg-zinc-800 border border-zinc-700/60 rounded-xl px-4 py-2.5 text-zinc-150 text-sm focus:outline-none focus:border-rose-500/60 focus:bg-zinc-800 transition cursor-pointer"
                   >
-                    <option value="" disabled>Select a reason...</option>
-                    <option value="Vehicle broke down / needs urgent maintenance">Vehicle broke down / needs urgent maintenance</option>
-                    <option value="Host personal emergency">Host personal emergency</option>
-                    <option value="Vehicle was in an accident">Vehicle was in an accident</option>
+                    <option value="" disabled>
+                      Select a reason...
+                    </option>
+                    <option value="Vehicle broke down / needs urgent maintenance">
+                      Vehicle broke down / needs urgent maintenance
+                    </option>
+                    <option value="Host personal emergency">
+                      Host personal emergency
+                    </option>
+                    <option value="Vehicle was in an accident">
+                      Vehicle was in an accident
+                    </option>
                     <option value="Other">Other</option>
                   </select>
                 </div>
@@ -917,7 +1072,7 @@ const Dashboard = () => {
                 onClick={handleConfirmCancellation}
                 className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs transition cursor-pointer flex items-center justify-center"
               >
-                Yes, Cancel Booking
+                {confirmModal.mode === "host" ? "Send Request" : "Yes, Cancel Booking"}
               </button>
             </div>
           </div>
@@ -1154,6 +1309,13 @@ const Dashboard = () => {
                         Security deposit hold released in full.
                       </p>
                     )}
+                  </div>
+                )}
+
+                {selectedBooking.status === "Confirmed" && (
+                  <div className="mt-4 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <p className="text-sm font-bold text-emerald-300">Have a safe journey!</p>
                   </div>
                 )}
               </div>

@@ -32,10 +32,22 @@ export const updateVehicleAvailability = async (id, unavailableDates, isAvailabl
   return response.data;
 };
 
+export const updateVehicleDetails = async (id, payload) => {
+  const response = await api.patch(`/vehicle/${id}/details`, payload, {
+    withCredentials: true,
+  });
+  return response.data;
+};
+
 export const searchVehicles = async ({ lat, lng, radius = 30, startDate, endDate, page = 1 }) => {
   const params = { lat, lng, radius, page };
   if (startDate) params.startDate = startDate;
   if (endDate) params.endDate = endDate;
   const response = await api.get("/vehicle/search", { params, withCredentials: true });
+  return response.data;
+};
+
+export const deleteVehicle = async (id) => {
+  const response = await api.delete(`/vehicle/${id}`, { withCredentials: true });
   return response.data;
 };

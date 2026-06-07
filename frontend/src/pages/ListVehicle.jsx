@@ -27,8 +27,8 @@ const STEPS = [
 ];
 
 const VEHICLE_TYPES = {
-  "2-Wheeler": ["Cruiser", "Sportbike", "Scooter", "Adventure", "Motorcycle"],
-  "4-Wheeler": ["Sedan", "SUV", "Hatchback", "Truck"],
+  "2-Wheeler": ["Cruiser", "SportBike", "Scooter", "Adventure", "Commuter"],
+  "4-Wheeler": ["Sedan", "SUV", "Hatchback", "Truck", "Premium", "Luxury", "Sports"],
 };
 
 const ListVehicle = () => {

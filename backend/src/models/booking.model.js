@@ -70,6 +70,11 @@ const BookingSchema = new Schema(
     cancellationReason: {
       type: String,
     },
+    cancellationRequestByHost: {
+      isRequested: { type: Boolean, default: false },
+      reason: { type: String },
+      requestedAt: { type: Date }
+    },
   },
   { timestamps: true },
 );

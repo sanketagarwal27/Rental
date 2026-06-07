@@ -1,6 +1,7 @@
 import { Booking } from "../models/booking.model.js";
 import { Vehicle } from "../models/vehicle.model.js";
 import { Transaction } from "../models/transaction.model.js";
+import { minDeposit } from "../constant.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
@@ -74,11 +75,18 @@ export const lockVehicle = asyncHandler(async (req, res) => {
   const days = bookedDates.length;
   const totalPrice = days * vehicle.pricePerDay;
   const advanceAmount = Math.round(totalPrice * 0.25); // 25% token upfront
-  // Security deposit: 20% of total, clamped between ₹3,000 and ₹10,000
-  const securityDeposit = Math.min(
-    Math.max(Math.round(totalPrice * 0.20), 3000),
-    10000
+  // Security deposit based on vehicle type
+  const depositConfig = minDeposit[vehicle.type] || [3000, 20]; // fallback
+  const securityDeposit = Math.round(
+    Math.max(depositConfig[0], (depositConfig[1] * totalPrice) / 100)
   );
+  let securityDepositReason = "";
+  if (depositConfig[0] > (depositConfig[1] * totalPrice) / 100) {
+    securityDepositReason = `Charging ₹${depositConfig[0]} fixed as security of ${vehicle.type} vehicle`;
+  } else {
+    securityDepositReason = `Charging ${depositConfig[1]}% of total booking as security of ${vehicle.type} vehicle`;
+  }
+
   const remainingOnArrival = totalPrice - advanceAmount;
 
   // Platform commission split
@@ -123,6 +131,7 @@ export const lockVehicle = asyncHandler(async (req, res) => {
         totalPrice,
         advanceAmount,
         securityDeposit,
+        securityDepositReason,
         remainingOnArrival,
         platformFee,
         hostPayout,
@@ -280,6 +289,10 @@ export const cancelBooking = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Booking cannot be cancelled in its current state.");
   }
 
+  if (isHost && booking.status === "Confirmed") {
+    throw new ApiError(403, "Hosts cannot directly cancel a confirmed booking. Please use 'Request Cancellation' instead.");
+  }
+
   // Remove the blocked dates from the vehicle
   const start = new Date(booking.startDate);
   const end = new Date(booking.endDate);
@@ -295,6 +308,9 @@ export const cancelBooking = asyncHandler(async (req, res) => {
   if (isHost) {
     refundPct = 100;
     label = "Host cancelled: 100% refund";
+  } else if (booking.cancellationRequestByHost?.isRequested) {
+    refundPct = 100;
+    label = "Host requested cancellation: 100% refund";
   } else {
     const policy = getRefundPolicy(booking.startDate);
     refundPct = policy.pct;
@@ -385,7 +401,7 @@ export const getMyBookings = asyncHandler(async (req, res) => {
 
   const bookings = await Booking.find({
     customer: req.user._id,
-    status: { $nin: ["Locked", "Cancelled"] },
+    status: { $ne: "Locked" },
   })
     .populate("vehicle", "brand model type category fuelType images address pricePerDay")
     .populate("provider", "name avatar phone email")
@@ -401,6 +417,80 @@ export const getMyBookings = asyncHandler(async (req, res) => {
       200,
       { bookings, transactions },
       "Bookings and transactions fetched successfully."
+    )
+  );
+});
+
+// ─── Request Cancellation (Host) ──────────────────────────────────────────────────────────
+export const requestCancellation = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+  const { reason } = req.body;
+
+  const booking = await Booking.findById(bookingId).populate("vehicle");
+
+  if (!booking) {
+    throw new ApiError(404, "Booking not found.");
+  }
+
+  if (booking.vehicle.provider.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, "You can only request cancellation for your own vehicles.");
+  }
+
+  if (booking.status !== "Confirmed" && booking.status !== "Pending") {
+    throw new ApiError(400, "Can only request cancellation for confirmed or pending bookings.");
+  }
+
+  if (booking.cancellationRequestByHost?.isRequested) {
+    throw new ApiError(400, "Cancellation request already sent.");
+  }
+
+  if (!reason || !reason.trim()) {
+    throw new ApiError(400, "Reason is required for cancellation request.");
+  }
+
+  booking.cancellationRequestByHost = {
+    isRequested: true,
+    reason: reason.trim(),
+    requestedAt: new Date()
+  };
+
+  await booking.save();
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      { bookingId: booking._id },
+      "Cancellation request sent to the renter."
+    )
+  );
+});
+
+// ─── Reject Cancellation (Renter) ─────────────────────────────────────────────────────────
+export const rejectCancellation = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+
+  const booking = await Booking.findById(bookingId);
+
+  if (!booking) {
+    throw new ApiError(404, "Booking not found.");
+  }
+
+  if (booking.customer.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, "Only the renter can reject a cancellation request.");
+  }
+
+  if (!booking.cancellationRequestByHost?.isRequested) {
+    throw new ApiError(400, "No cancellation request pending for this booking.");
+  }
+
+  booking.cancellationRequestByHost = undefined;
+  await booking.save();
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      { bookingId: booking._id },
+      "Cancellation request rejected."
     )
   );
 });

@@ -370,7 +370,7 @@ export const getUserDashboardData = asyncHandler(async (req, res) => {
     })
     .populate({
       path: "myTrips",
-      match: { status: { $nin: ["Locked", "Cancelled"] } },
+      match: { status: { $ne: "Locked" } },
       options: { sort: { createdAt: -1 } },
       populate: {
         path: "vehicle",
@@ -398,16 +398,16 @@ export const getUserDashboardData = asyncHandler(async (req, res) => {
 
   const earningsBreakdown = userDashboard.myEarnings || [];
 
-  const activeBookings = earningsBreakdown.filter((b) =>
-    ["Confirmed", "Completed"].includes(b.status)
+  const completedBookings = earningsBreakdown.filter(
+    (b) => b.status === "Completed"
   );
 
   // Net earnings = 95% host payout (after 5% platform commission)
-  const totalPayoutEarned = activeBookings.reduce(
+  const totalPayoutEarned = completedBookings.reduce(
     (sum, b) => sum + (b.hostPayout || b.totalPrice * 0.95 || 0),
     0
   );
-  const totalPlatformFeeDeducted = activeBookings.reduce(
+  const totalPlatformFeeDeducted = completedBookings.reduce(
     (sum, b) => sum + (b.platformFee || b.totalPrice * 0.05 || 0),
     0
   );

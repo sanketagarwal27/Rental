@@ -42,6 +42,24 @@ export const cancelBooking = async (bookingId, reason = "") => {
   return response.data;
 };
 
+export const requestCancellation = async (bookingId, reason) => {
+  const response = await api.post(
+    `/booking/request-cancel/${bookingId}`,
+    { reason },
+    { withCredentials: true }
+  );
+  return response.data;
+};
+
+export const rejectCancellation = async (bookingId) => {
+  const response = await api.post(
+    `/booking/reject-cancel/${bookingId}`,
+    {},
+    { withCredentials: true }
+  );
+  return response.data;
+};
+
 /**
  * Fetch all bookings and transactions for the logged-in user.
  */

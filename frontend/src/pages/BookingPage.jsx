@@ -698,7 +698,7 @@ const BookingPage = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                      Start Date
+                      Pickup Date
                     </label>
                     <input
                       type="date"
@@ -710,7 +710,7 @@ const BookingPage = () => {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                      End Date
+                      Return Date
                     </label>
                     <input
                       type="date"
@@ -958,7 +958,8 @@ const BookingPage = () => {
                   <p>• 1–2 days before: 25% refund</p>
                   <p>• Same day or after: No refund</p>
                   <p className="text-zinc-600 mt-1">
-                    Security deposit hold is always released in full.
+                    Security deposit is used in case of any damage to the
+                    vehicle or else returned as a whole.
                   </p>
                 </div>
               </div>
@@ -1010,7 +1011,8 @@ const BookingPage = () => {
                         Security Deposit (hold)
                       </p>
                       <p className="text-[11px] text-zinc-500">
-                        Held on card, not charged
+                        {bookingData?.securityDepositReason ||
+                          "Held on card, not charged"}
                       </p>
                     </div>
                   </div>
@@ -1026,7 +1028,7 @@ const BookingPage = () => {
                       Due on pickup (75%)
                     </p>
                     <p className="text-[11px] text-zinc-500">
-                      Remaining rental + deposit capture/release
+                      Remaining rental
                     </p>
                   </div>
                   <span className="text-sm font-semibold text-zinc-300">
