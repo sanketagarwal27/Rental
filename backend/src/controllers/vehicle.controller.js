@@ -123,8 +123,8 @@ export const uploadVehicle = asyncHandler(async (req, res) => {
     address,
   } = req.body;
 
-  if (!req.user.isVerifiedEmail || !req.user.isVerifiedPhone) {
-    throw new ApiError(410, "Please verify your phone number and email");
+  if (!req.user.isVerifiedEmail) {
+    throw new ApiError(410, "Please verify your email before proceeding.");
   }
 
   if (

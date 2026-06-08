@@ -252,7 +252,7 @@ const ListVehicle = () => {
 
       {/* Main Content Area */}
         <main className="flex-1 p-6 pb-32 sm:p-10 lg:p-12 overflow-y-auto custom-scrollbar">
-          {!user?.isVerifiedEmail || !user?.isVerifiedPhone ? (
+          {!user?.isVerifiedEmail ? (
             <div className="h-full flex items-center justify-center">
               <div className="max-w-md w-full bg-zinc-950 border border-zinc-800 rounded-3xl p-8 text-center space-y-6 shadow-2xl">
                 <div className="w-16 h-16 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_20px_rgba(59,130,246,0.15)]">
@@ -261,7 +261,7 @@ const ListVehicle = () => {
                 <div>
                   <h2 className="text-xl font-bold text-zinc-100 mb-2">Verification Required</h2>
                   <p className="text-sm text-zinc-400 leading-relaxed">
-                    To maintain trust and security in our community, you must verify both your email address and phone number before you can host a vehicle.
+                    To maintain trust and security in our community, you must verify your email address before you can host a vehicle.
                   </p>
                 </div>
                 <Link

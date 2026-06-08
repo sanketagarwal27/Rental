@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { verifyJwt } from "../middlewares/auth.middleware.js";
+import { bookingLimiter } from "../middlewares/limiter.middleware.js";
 import {
   lockVehicle,
   createPaymentOrder,
@@ -15,7 +16,7 @@ const router = Router();
 // All booking routes require authentication
 router.use(verifyJwt);
 
-router.post("/lock", lockVehicle);
+router.post("/lock", bookingLimiter, lockVehicle);
 router.post("/payment-order/:bookingId", createPaymentOrder);
 router.post("/confirm/:bookingId", confirmBooking);
 router.post("/cancel/:bookingId", cancelBooking);

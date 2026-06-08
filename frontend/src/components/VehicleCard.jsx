@@ -8,8 +8,8 @@ export default function VehicleCard({ title, image, price, tag, specs = [] }) {
       toast.error("Please login to proceed with booking");
       return;
     }
-    if (!user.isVerifiedEmail || !user.isVerifiedPhone) {
-      toast.error("Verification Required: Your email and phone number must be verified in your Profile before booking.", { duration: 5000 });
+    if (!user.isVerifiedEmail) {
+      toast.error("Verification Required: Your email must be verified in your Profile before booking.", { duration: 5000 });
       return;
     }
     console.log("Booking...");

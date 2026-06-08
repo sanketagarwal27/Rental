@@ -114,11 +114,11 @@ const Sidebar = () => {
                     setIsOpen(false);
                     if (
                       item.to === "/list-vehicle" &&
-                      (!user?.isVerifiedEmail || !user?.isVerifiedPhone)
+                      !user?.isVerifiedEmail
                     ) {
                       e.preventDefault();
                       toast.error(
-                        "Verification Required: Your email and phone number must be verified in your Profile before you can host a vehicle.",
+                        "Verification Required: Your email must be verified in your Profile before you can host a vehicle.",
                         { duration: 5000 },
                       );
                     }

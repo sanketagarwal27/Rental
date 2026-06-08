@@ -38,3 +38,13 @@ export const avatarUpdateLimiter = rateLimit({
     message: "Too many avatar updates. Please wait a bit before uploading again.",
   },
 });
+
+// Limit booking attempts (5 attempts per 20 mins)
+export const bookingLimiter = rateLimit({
+  windowMs: 20 * 60 * 1000,
+  max: 5,
+  message: {
+    success: false,
+    message: "Too many booking attempts. Please try again after 20 minutes.",
+  },
+});

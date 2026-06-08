@@ -20,10 +20,10 @@ export const lockVehicle = asyncHandler(async (req, res) => {
   if (!vehicleId || !startDate || !endDate) {
     throw new ApiError(400, "vehicleId, startDate, and endDate are required.");
   }
-  if (!req.user.isVerifiedEmail || !req.user.isVerifiedPhone) {
+  if (!req.user.isVerifiedEmail) {
     throw new ApiError(
       410,
-      "Please verify your email and phone number before booking."
+      "Please verify your email before booking."
     );
   }
 

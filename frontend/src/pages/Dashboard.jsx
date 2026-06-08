@@ -58,21 +58,22 @@ const RenterView = ({
   onSelectBooking,
 }) => {
   const navigate = useNavigate();
-  const [tripFilter, setTripFilter] = useState("All");
+  const [tripFilter, setTripFilter] = useState("Upcoming");
   const [visibleTripsCount, setVisibleTripsCount] = useState(5);
 
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
   const getTripState = (bk) => {
-    if (bk.status === "Cancelled" || bk.status === "Rejected") return "Cancelled";
+    if (bk.status === "Cancelled" || bk.status === "Rejected")
+      return "Cancelled";
     if (bk.status === "Completed") return "Completed";
-    
+
     const start = new Date(bk.startDate);
     start.setUTCHours(0, 0, 0, 0);
     const end = new Date(bk.endDate);
     end.setUTCHours(0, 0, 0, 0);
-    
+
     if (start > today) return "Upcoming";
     if (end < today) return "Completed";
     return "Ongoing";
@@ -312,27 +313,41 @@ const RenterView = ({
                             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                             <div>
                               <p className="text-xs font-semibold text-rose-300">
-                                The host has requested you to cancel this booking
+                                The host has requested you to cancel this
+                                booking
                               </p>
                               <p className="text-[11px] text-rose-400 mt-1">
-                                Reason: <span className="font-semibold">{bk.cancellationRequestByHost.reason}</span>
+                                Reason:{" "}
+                                <span className="font-semibold">
+                                  {bk.cancellationRequestByHost.reason}
+                                </span>
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => onCancelBooking(bk._id, "renter")}
-                              disabled={cancellingId === bk._id || rejectingId === bk._id}
+                              disabled={
+                                cancellingId === bk._id ||
+                                rejectingId === bk._id
+                              }
                               className="text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded-lg transition shadow-md shadow-rose-600/20 cursor-pointer disabled:opacity-50 flex-1"
                             >
-                              {cancellingId === bk._id ? "Processing…" : "Accept (100% Refund)"}
+                              {cancellingId === bk._id
+                                ? "Processing…"
+                                : "Accept (100% Refund)"}
                             </button>
                             <button
                               onClick={() => onRejectCancellation(bk._id)}
-                              disabled={cancellingId === bk._id || rejectingId === bk._id}
+                              disabled={
+                                cancellingId === bk._id ||
+                                rejectingId === bk._id
+                              }
                               className="text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg transition border border-zinc-700 cursor-pointer disabled:opacity-50 flex-1"
                             >
-                              {rejectingId === bk._id ? "Rejecting…" : "Reject Cancellation"}
+                              {rejectingId === bk._id
+                                ? "Rejecting…"
+                                : "Reject Cancellation"}
                             </button>
                           </div>
                         </div>
@@ -353,8 +368,9 @@ const RenterView = ({
               ))}
             </div>
           )}
-          
-          {(filteredSortedTrips.length > visibleTripsCount || visibleTripsCount > 5) && (
+
+          {(filteredSortedTrips.length > visibleTripsCount ||
+            visibleTripsCount > 5) && (
             <div className="flex justify-center pt-2 gap-4">
               {filteredSortedTrips.length > visibleTripsCount && (
                 <button
@@ -677,68 +693,76 @@ const HostView = ({
               </div>
             ) : (
               <div className="space-y-3">
-                {financials.rentalBookingsList?.slice(0, visibleIncomingCount).map((req, i) => {
-                  const payout =
-                    req.hostPayout ?? Math.round((req.totalPrice || 0) * 0.95);
-                  return (
-                    <div
-                      key={i}
-                      className="bg-zinc-900/30 border border-zinc-900 rounded-xl p-4 space-y-3"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-semibold text-zinc-200">
-                            {req.customer?.name}
-                          </p>
-                          <p className="text-xs text-zinc-500">
-                            {req.vehicle?.brand} {req.vehicle?.model}
-                          </p>
-                          <p className="text-[10px] text-zinc-600 mt-0.5">
-                            {new Date(req.startDate).toLocaleDateString()} –{" "}
-                            {new Date(req.endDate).toLocaleDateString()}
-                          </p>
+                {financials.rentalBookingsList
+                  ?.slice(0, visibleIncomingCount)
+                  .map((req, i) => {
+                    const payout =
+                      req.hostPayout ??
+                      Math.round((req.totalPrice || 0) * 0.95);
+                    return (
+                      <div
+                        key={i}
+                        className="bg-zinc-900/30 border border-zinc-900 rounded-xl p-4 space-y-3"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold text-zinc-200">
+                              {req.customer?.name}
+                            </p>
+                            <p className="text-xs text-zinc-500">
+                              {req.vehicle?.brand} {req.vehicle?.model}
+                            </p>
+                            <p className="text-[10px] text-zinc-600 mt-0.5">
+                              {new Date(req.startDate).toLocaleDateString()} –{" "}
+                              {new Date(req.endDate).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1.5 shrink-0 text-right">
+                            <span
+                              className={`text-[10px] font-mono font-medium border px-2 py-0.5 rounded-full ${
+                                req.status === "Confirmed"
+                                  ? "text-blue-400 bg-blue-500/10 border-blue-500/20"
+                                  : req.status === "Completed"
+                                    ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                                    : "text-zinc-400 bg-zinc-800/80 border-zinc-700/50"
+                              }`}
+                            >
+                              {req.status}
+                            </span>
+                            <p className="text-xs font-semibold text-emerald-400">
+                              {formatINR(payout)}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex flex-col items-end gap-1.5 shrink-0 text-right">
-                          <span
-                            className={`text-[10px] font-mono font-medium border px-2 py-0.5 rounded-full ${
-                              req.status === "Confirmed"
-                                ? "text-blue-400 bg-blue-500/10 border-blue-500/20"
-                                : req.status === "Completed"
-                                  ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-                                  : "text-zinc-400 bg-zinc-800/80 border-zinc-700/50"
-                            }`}
-                          >
-                            {req.status}
-                          </span>
-                          <p className="text-xs font-semibold text-emerald-400">
-                            {formatINR(payout)}
-                          </p>
-                        </div>
+                        {req.status === "Confirmed" && (
+                          <div className="flex justify-end pt-1">
+                            <button
+                              onClick={() => onCancelBooking(req._id, "host")}
+                              disabled={
+                                cancellingId === req._id ||
+                                req.cancellationRequestByHost?.isRequested
+                              }
+                              className="text-[11px] text-rose-400 hover:text-rose-300 border border-rose-500/20 hover:border-rose-500/40 bg-rose-500/5 hover:bg-rose-500/10 px-2.5 py-1 rounded-lg transition cursor-pointer disabled:opacity-50 font-medium"
+                            >
+                              {req.cancellationRequestByHost?.isRequested
+                                ? "Cancellation Requested"
+                                : cancellingId === req._id
+                                  ? "Processing…"
+                                  : "Request Cancellation"}
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      {req.status === "Confirmed" && (
-                        <div className="flex justify-end pt-1">
-                          <button
-                            onClick={() => onCancelBooking(req._id, "host")}
-                            disabled={cancellingId === req._id || req.cancellationRequestByHost?.isRequested}
-                            className="text-[11px] text-rose-400 hover:text-rose-300 border border-rose-500/20 hover:border-rose-500/40 bg-rose-500/5 hover:bg-rose-500/10 px-2.5 py-1 rounded-lg transition cursor-pointer disabled:opacity-50 font-medium"
-                          >
-                            {req.cancellationRequestByHost?.isRequested 
-                               ? "Cancellation Requested" 
-                               : cancellingId === req._id
-                                 ? "Processing…"
-                                 : "Request Cancellation"}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
             )}
-            
-            {(financials.rentalBookingsList?.length > visibleIncomingCount || visibleIncomingCount > 5) && (
+
+            {(financials.rentalBookingsList?.length > visibleIncomingCount ||
+              visibleIncomingCount > 5) && (
               <div className="flex justify-center pt-2 gap-4">
-                {financials.rentalBookingsList?.length > visibleIncomingCount && (
+                {financials.rentalBookingsList?.length >
+                  visibleIncomingCount && (
                   <button
                     onClick={() => setVisibleIncomingCount((prev) => prev + 5)}
                     className="text-xs font-semibold text-zinc-400 hover:text-zinc-200 bg-zinc-900/50 hover:bg-zinc-800 px-6 py-2 rounded-full border border-zinc-800 transition cursor-pointer"
@@ -837,7 +861,8 @@ const Dashboard = () => {
         reason: "",
       });
       const { toast } = await import("sonner");
-      const { cancelBooking, requestCancellation } = await import("../api/booking");
+      const { cancelBooking, requestCancellation } =
+        await import("../api/booking");
 
       const cancelReason =
         mode === "host"
@@ -845,7 +870,7 @@ const Dashboard = () => {
             ? reason.trim()
             : selectedReason
           : "Cancelled by customer from dashboard";
-      
+
       let res;
       if (mode === "host") {
         res = await requestCancellation(bookingId, cancelReason);
@@ -877,7 +902,9 @@ const Dashboard = () => {
       fetchDashboard();
     } catch (err) {
       const { toast } = await import("sonner");
-      toast.error(err?.response?.data?.message || "Failed to reject cancellation");
+      toast.error(
+        err?.response?.data?.message || "Failed to reject cancellation",
+      );
     } finally {
       setRejectingId(null);
     }
@@ -998,7 +1025,9 @@ const Dashboard = () => {
               <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-bold text-zinc-100 text-base">
-                  {confirmModal.mode === "host" ? "Request Cancellation" : "Cancel Booking"}
+                  {confirmModal.mode === "host"
+                    ? "Request Cancellation"
+                    : "Cancel Booking"}
                 </h3>
                 <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
                   {confirmModal.mode === "host"
@@ -1081,7 +1110,9 @@ const Dashboard = () => {
                 onClick={handleConfirmCancellation}
                 className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs transition cursor-pointer flex items-center justify-center"
               >
-                {confirmModal.mode === "host" ? "Send Request" : "Yes, Cancel Booking"}
+                {confirmModal.mode === "host"
+                  ? "Send Request"
+                  : "Yes, Cancel Booking"}
               </button>
             </div>
           </div>
@@ -1324,7 +1355,9 @@ const Dashboard = () => {
                 {selectedBooking.status === "Confirmed" && (
                   <div className="mt-4 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <p className="text-sm font-bold text-emerald-300">Have a safe journey!</p>
+                    <p className="text-sm font-bold text-emerald-300">
+                      Have a safe journey!
+                    </p>
                   </div>
                 )}
               </div>
