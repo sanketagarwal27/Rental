@@ -8,7 +8,10 @@ import {
   cancelBooking,
   getMyBookings,
   requestCancellation,
-  rejectCancellation
+  rejectCancellation,
+  markPickedUp,
+  markReturned,
+  createPickupOrder,
 } from "../controllers/booking.controller.js";
 
 const router = Router();
@@ -22,6 +25,9 @@ router.post("/confirm/:bookingId", confirmBooking);
 router.post("/cancel/:bookingId", cancelBooking);
 router.post("/request-cancel/:bookingId", requestCancellation);
 router.post("/reject-cancel/:bookingId", rejectCancellation);
+router.post("/pickup-order/:bookingId", createPickupOrder);
+router.post("/pickup/:bookingId", markPickedUp);
+router.post("/return/:bookingId", markReturned);
 router.get("/my", getMyBookings);
 
 export default router;

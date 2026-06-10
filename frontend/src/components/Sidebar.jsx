@@ -39,6 +39,10 @@ const Sidebar = () => {
     { to: "/profile", label: "Profile", icon: User },
   );
 
+  if (user?.role === "Admin") {
+    navItems.push({ to: "/admin", label: "Admin Panel", icon: Settings });
+  }
+
   // Helper to extract initials for avatar fallback
   const getInitials = (name) => {
     if (!name) return "U";

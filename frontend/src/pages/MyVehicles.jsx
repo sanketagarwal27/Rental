@@ -24,6 +24,7 @@ import {
   Plus,
   Settings,
   Trash2,
+  Lock,
 } from "lucide-react";
 
 // Helper to format currency in INR (₹)
@@ -51,6 +52,7 @@ const MyVehicles = () => {
   const [selectedVehicleForAvailability, setSelectedVehicleForAvailability] =
     useState(null);
   const [unavailableDatesList, setUnavailableDatesList] = useState([]);
+  const [bookedDatesForSelected, setBookedDatesForSelected] = useState(new Set());
   const [newDateInput, setNewDateInput] = useState("");
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -80,10 +82,36 @@ const MyVehicles = () => {
 
   const openAvailabilityModal = (vehicle) => {
     setSelectedVehicleForAvailability(vehicle);
-    // Convert existing ISO dates to YYYY-MM-DD for the UI
-    const existingDates = (vehicle.unavailableDates || []).map(
-      (d) => new Date(d).toISOString().split("T")[0],
+    
+    // Get today's local date string (YYYY-MM-DD)
+    const d = new Date();
+    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+    // Convert existing ISO dates to YYYY-MM-DD for the UI, filter out past dates
+    const existingDates = (vehicle.unavailableDates || [])
+      .map((d) => new Date(d).toISOString().split("T")[0])
+      .filter((dateStr) => dateStr >= todayStr);
+
+    // Find all booked dates for this vehicle
+    const activeBookings = bookings.filter(
+      (b) =>
+        b.vehicle?._id === vehicle._id &&
+        ["Locked", "Confirmed", "Ongoing"].includes(b.status)
     );
+
+    const bookedSet = new Set();
+    activeBookings.forEach((b) => {
+      let current = new Date(b.startDate);
+      current.setUTCHours(0, 0, 0, 0);
+      const last = new Date(b.endDate);
+      last.setUTCHours(0, 0, 0, 0);
+      while (current <= last) {
+        bookedSet.add(current.toISOString().split("T")[0]);
+        current.setUTCDate(current.getUTCDate() + 1);
+      }
+    });
+
+    setBookedDatesForSelected(bookedSet);
     setUnavailableDatesList(existingDates);
     setNewDateInput("");
     setAvailabilityModalOpen(true);
@@ -93,6 +121,7 @@ const MyVehicles = () => {
     setAvailabilityModalOpen(false);
     setSelectedVehicleForAvailability(null);
     setUnavailableDatesList([]);
+    setBookedDatesForSelected(new Set());
   };
 
   const handleAddUnavailableDate = () => {
@@ -692,31 +721,49 @@ const MyVehicles = () => {
                     </div>
                   ) : (
                     <div className="max-h-[200px] overflow-y-auto pr-2 space-y-2 custom-scrollbar">
-                      {unavailableDatesList.map((date) => (
-                        <div
-                          key={date}
-                          className="flex items-center justify-between p-3 bg-zinc-900 border border-zinc-800 rounded-xl"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-2 h-2 rounded-full bg-rose-500" />
-                            <span className="text-sm font-medium text-zinc-300">
-                              {new Date(date).toLocaleDateString(undefined, {
-                                weekday: "short",
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              })}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => handleRemoveUnavailableDate(date)}
-                            className="p-1.5 bg-zinc-800 hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 rounded-lg transition cursor-pointer"
-                            title="Remove date"
+                      {unavailableDatesList.map((date) => {
+                        const isBooked = bookedDatesForSelected.has(date);
+                        return (
+                          <div
+                            key={date}
+                            className="flex items-center justify-between p-3 bg-zinc-900 border border-zinc-800 rounded-xl"
                           >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
+                            <div className="flex items-center gap-3">
+                              <div className={`w-2 h-2 rounded-full ${isBooked ? "bg-amber-500" : "bg-rose-500"}`} />
+                              <span className="text-sm font-medium text-zinc-300">
+                                {new Date(date).toLocaleDateString(undefined, {
+                                  weekday: "short",
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </span>
+                              {isBooked && (
+                                <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 uppercase tracking-wider font-bold">
+                                  Booked
+                                </span>
+                              )}
+                            </div>
+                            {isBooked ? (
+                              <button
+                                disabled
+                                className="p-1.5 text-zinc-600 rounded-lg cursor-not-allowed"
+                                title="Cannot remove booked dates"
+                              >
+                                <Lock className="w-3.5 h-3.5" />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleRemoveUnavailableDate(date)}
+                                className="p-1.5 bg-zinc-800 hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 rounded-lg transition cursor-pointer"
+                                title="Remove date"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

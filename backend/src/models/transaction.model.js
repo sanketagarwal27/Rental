@@ -16,14 +16,18 @@ const TransactionSchema = new Schema(
       type: String,
       required: true,
       enum: [
-        "Advance_Charge",   // 25% token charge at booking confirmation
-        "Security_Hold",    // Security deposit hold (not charged, just held)
-        "Hold_Release",     // Security deposit hold released on cancellation
-        "Refund",           // Refund of advance on cancellation
-        "Platform_Fee",     // 5% commission charged to the platform owner's account
-        "Charge",           // Full/remaining charge (legacy / future use)
-        "Overage_Fee",      // Extra mileage / late return fee
-        "Payout",           // Host earning payout (95% of total after commission)
+        "Advance_Charge",        // 25% token charge at booking confirmation
+        "Security_Hold",         // Security deposit hold (not charged, just held)
+        "Hold_Release",          // Security deposit hold released on cancellation or clean return
+        "Refund",                // Refund of advance on cancellation
+        "Platform_Fee",          // 5% commission on total trip cost
+        "Platform_Fee_Reversal", // Commission reversed when a confirmed booking is cancelled
+        "Charge",                // Full/remaining charge (legacy / future use)
+        "Overage_Fee",           // Extra mileage / late return fee
+        "Payout",                // Host earning payout (95% of total after commission)
+        "Remaining_Charge",      // Remaining 75% collected via Razorpay on vehicle pickup
+        "Deposit_Deduction",     // Extra/damage fee deducted from security deposit on return
+        "Deposit_Refund",        // Net security deposit returned to customer after deductions
       ],
     },
     amount: {
@@ -40,7 +44,7 @@ const TransactionSchema = new Schema(
     status: {
       type: String,
       required: true,
-      enum: ["Pending", "Succeeded", "Failed", "Requires_Action"],
+      enum: ["Pending", "Succeeded", "Failed", "Cancelled", "Requires_Action"],
       default: "Pending",
     },
     gateway: {

@@ -52,7 +52,7 @@ const BookingSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["Locked", "Pending", "Confirmed", "Completed", "Cancelled"],
+      enum: ["Locked", "Pending", "Confirmed", "Ongoing", "Completed", "Cancelled"],
       default: "Locked",
     },
     paymentStatus: {
@@ -69,6 +69,17 @@ const BookingSchema = new Schema(
     },
     cancellationReason: {
       type: String,
+    },
+    // Extra/damage charges deducted from security deposit on return
+    extraCharge: {
+      type: Number,
+      default: 0,
+    },
+    pickedUpAt: {
+      type: Date,
+    },
+    returnedAt: {
+      type: Date,
     },
     cancellationRequestByHost: {
       isRequested: { type: Boolean, default: false },

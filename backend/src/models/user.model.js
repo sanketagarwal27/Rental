@@ -23,6 +23,11 @@ const UserSchema = new Schema(
       required: true,
       trim: true,
     },
+    role: {
+      type: String,
+      default: "User",
+      enum: ["User", "Admin"]
+    },
     email: {
       type: String,
       required: [true, "Email is required"],

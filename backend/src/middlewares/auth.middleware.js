@@ -18,3 +18,13 @@ export const verifyJwt = asyncHandler(async (req, res, next) => {
     throw new ApiError(401, err?.message || "Invalid Token Access");
   }
 });
+
+export const verifyAdmin = asyncHandler(async (req, res, next) => {
+  if (!req.user) {
+    throw new ApiError(401, "Unauthorized request");
+  }
+  if (req.user.role !== "Admin") {
+    throw new ApiError(403, "Forbidden: Admin access required");
+  }
+  next();
+});

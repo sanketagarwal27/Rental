@@ -346,7 +346,17 @@ export const updateAvailability = asyncHandler(async (req, res) => {
         }
       }
     }
-    updateFields.unavailableDates = unavailableDates;
+    const d = new Date();
+    const todayStr = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+
+    updateFields.unavailableDates = unavailableDates.filter((dateStr) => {
+      // Basic check to strip obviously old dates if they pass the string comparison
+      const dNorm = new Date(dateStr);
+      dNorm.setUTCHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      return dNorm >= today;
+    });
   }
   if (isAvailable !== undefined) {
     updateFields.isAvailable = isAvailable;

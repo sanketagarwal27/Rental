@@ -81,3 +81,46 @@ export const getMyBookings = async () => {
   const response = await api.get("/booking/my", { withCredentials: true });
   return response.data;
 };
+
+/**
+ * Create a Razorpay payment order for the remaining 75% at vehicle pickup.
+ * @param {string} bookingId
+ */
+export const createPickupOrder = async (bookingId) => {
+  const response = await api.post(
+    `/booking/pickup-order/${bookingId}`,
+    {},
+    { withCredentials: true }
+  );
+  return response.data;
+};
+
+/**
+ * Customer confirms vehicle pickup after paying remaining 75% via Razorpay.
+ * Transitions booking: Confirmed → Ongoing
+ * @param {string} bookingId
+ * @param {object} paymentData - { razorpay_payment_id, razorpay_order_id, razorpay_signature }
+ */
+export const markPickedUp = async (bookingId, paymentData) => {
+  const response = await api.post(
+    `/booking/pickup/${bookingId}`,
+    paymentData,
+    { withCredentials: true }
+  );
+  return response.data;
+};
+
+/**
+ * Host confirms the vehicle has been returned.
+ * Transitions booking: Ongoing → Completed
+ * @param {string} bookingId
+ * @param {number} [extraCharge=0] - Damage/overage fee to deduct from security deposit
+ */
+export const markReturned = async (bookingId, extraCharge = 0) => {
+  const response = await api.post(
+    `/booking/return/${bookingId}`,
+    { extraCharge },
+    { withCredentials: true }
+  );
+  return response.data;
+};

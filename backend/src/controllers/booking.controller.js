@@ -297,7 +297,7 @@ export const confirmBooking = asyncHandler(async (req, res) => {
     note: `Security deposit hold — released upon safe return of vehicle`,
   });
 
-  // 3. Platform fee (5% of total — taken from the full booking amount)
+  // 3. Platform fee (5% of TOTAL trip cost — deducted from the advance received online)
   await Transaction.create({
     booking: booking._id,
     user: booking.provider, // logged against the provider so the host's ledger shows it
@@ -307,20 +307,22 @@ export const confirmBooking = asyncHandler(async (req, res) => {
     status: "Succeeded",
     gateway: "Razorpay",
     gatewayPaymentIntentId: `${razorpay_payment_id}_FEE`,
-    note: `5% platform commission on total booking of ₹${booking.totalPrice}`,
+    note: `5% platform commission on total trip cost of ₹${booking.totalPrice} = ₹${booking.platformFee}`,
   });
 
   // 4. Host payout (95% of total — pending until trip completion)
+  //    Platform now collects both advance (25%) and remaining (75%) via Razorpay,
+  //    so the full hostPayout is disbursed by the platform on trip completion.
   await Transaction.create({
     booking: booking._id,
     user: booking.provider,
     type: "Payout",
-    amount: booking.hostPayout,
+    amount: booking.hostPayout, // 95% of totalPrice
     currency: "INR",
-    status: "Pending", // Will be set to Succeeded when trip is Completed
+    status: "Pending", // Released when host marks trip as Completed
     gateway: "Razorpay",
     gatewayPaymentIntentId: `${razorpay_payment_id}_PAY`,
-    note: `Host payout (95% after 5% platform fee) — released on trip completion`,
+    note: `Host net earnings ₹${booking.hostPayout} (95% of ₹${booking.totalPrice} after 5% platform fee). Platform collects 25% advance now + 75% remaining via Razorpay at pickup, then disburses full amount on trip completion.`,
   });
 
   return res.status(200).json(
@@ -434,6 +436,38 @@ export const cancelBooking = asyncHandler(async (req, res) => {
   }
 
   await Promise.all(transactions);
+
+  // For Confirmed bookings: void the pending Payout and reverse the Platform_Fee
+  // (host should not bear commission cost on a trip that never happened)
+  if (booking.status === "Confirmed") {
+    // Void the pending payout
+    await Transaction.findOneAndUpdate(
+      { booking: booking._id, type: "Payout", status: "Pending" },
+      {
+        status: "Cancelled",
+        note: `Payout voided — booking cancelled before trip started.`,
+      }
+    );
+
+    // Reverse the platform fee
+    const platformFeeDoc = await Transaction.findOne({
+      booking: booking._id,
+      type: "Platform_Fee",
+    });
+    if (platformFeeDoc) {
+      await Transaction.create({
+        booking: booking._id,
+        user: booking.provider,
+        type: "Platform_Fee_Reversal",
+        amount: platformFeeDoc.amount,
+        currency: "INR",
+        status: "Succeeded",
+        gateway: "Simulated",
+        gatewayPaymentIntentId: `SIM-${booking._id}-FEEVER`,
+        note: `Platform fee of ₹${platformFeeDoc.amount} reversed — booking cancelled before trip started.`,
+      });
+    }
+  }
 
   // Determine paymentStatus based on refund
   let paymentStatus = "Unpaid";
@@ -568,6 +602,243 @@ export const rejectCancellation = asyncHandler(async (req, res) => {
       200,
       { bookingId: booking._id },
       "Cancellation request rejected."
+    )
+  );
+});
+
+// ─── Create Pickup Payment Order (Razorpay) ───────────────────────────────────
+export const createPickupOrder = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+
+  const booking = await Booking.findOne({
+    _id: bookingId,
+    customer: req.user._id,
+    status: "Confirmed",
+  });
+
+  if (!booking) {
+    throw new ApiError(
+      404,
+      "Booking not found, not confirmed, or does not belong to you."
+    );
+  }
+
+  // We remove the rigid date check here. The booking state machine (Confirmed -> Ongoing)
+  // handles the safety. If the user and host physically proceed with the pickup early,
+  // the system should not block them due to timezone issues.
+
+  const remainingAmount = booking.totalPrice - booking.amountPaid;
+
+  if (remainingAmount <= 0) {
+    throw new ApiError(400, "No remaining balance due for this booking.");
+  }
+
+  const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_API_KEY,
+    key_secret: process.env.RAZORPAY_API_SECRET,
+  });
+
+  const options = {
+    amount: remainingAmount * 100, // paise
+    currency: "INR",
+    receipt: `${bookingId}-pickup`,
+  };
+
+  try {
+    const order = await razorpay.orders.create(options);
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          orderId: order.id,
+          amount: order.amount,
+          currency: order.currency,
+          remainingAmount,
+        },
+        "Pickup payment order created successfully."
+      )
+    );
+  } catch {
+    throw new ApiError(500, "Could not create pickup payment order.");
+  }
+});
+
+// ─── Mark Picked Up — verify Razorpay payment (Customer) ─────────────────────
+export const markPickedUp = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+  const { razorpay_payment_id, razorpay_order_id, razorpay_signature } =
+    req.body;
+
+  const booking = await Booking.findOne({
+    _id: bookingId,
+    customer: req.user._id,
+    status: "Confirmed",
+  });
+
+  if (!booking) {
+    throw new ApiError(
+      404,
+      "Booking not found, not confirmed, or does not belong to you."
+    );
+  }
+
+  // Date check removed to avoid strict UTC vs Local timezone blocking.
+  // The state machine handles the flow (Confirmed -> Ongoing).
+
+  // Verify Razorpay signature
+  if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+    throw new ApiError(400, "Payment details are missing.");
+  }
+
+  const body = razorpay_order_id + "|" + razorpay_payment_id;
+  const expectedSignature = crypto
+    .createHmac("sha256", process.env.RAZORPAY_API_SECRET)
+    .update(body.toString())
+    .digest("hex");
+
+  if (expectedSignature !== razorpay_signature) {
+    throw new ApiError(400, "Invalid payment signature. Pickup not confirmed.");
+  }
+
+  const remainingAmount = booking.totalPrice - booking.amountPaid;
+
+  // Transition to Ongoing
+  booking.status = "Ongoing";
+  booking.paymentStatus = "FullyPaid";
+  booking.amountPaid = booking.totalPrice;
+  booking.pickedUpAt = new Date();
+  await booking.save();
+
+  // Record the remaining 75% payment via Razorpay
+  await Transaction.create({
+    booking: booking._id,
+    user: req.user._id,
+    type: "Remaining_Charge",
+    amount: remainingAmount,
+    currency: "INR",
+    status: "Succeeded",
+    gateway: "Razorpay",
+    gatewayPaymentIntentId: razorpay_payment_id,
+    note: `Remaining 75% of ₹${remainingAmount} paid via Razorpay at vehicle pickup. Platform now holds full trip amount and will disburse ₹${booking.hostPayout} to host on trip completion.`,
+  });
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        bookingId: booking._id,
+        status: "Ongoing",
+        amountPaid: booking.totalPrice,
+        pickedUpAt: booking.pickedUpAt,
+      },
+      "Payment confirmed! Vehicle pickup confirmed. Your trip is now ongoing. Have a safe journey!"
+    )
+  );
+});
+
+// ─── Mark Returned (Host) ────────────────────────────────────────────────────
+export const markReturned = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+  const { extraCharge = 0 } = req.body;
+
+  const booking = await Booking.findOne({
+    _id: bookingId,
+    provider: req.user._id,
+    status: "Ongoing",
+  });
+
+  if (!booking) {
+    throw new ApiError(
+      404,
+      "Booking not found, not ongoing, or does not belong to your vehicle."
+    );
+  }
+
+  // Date check removed to allow early returns or timezone-mismatched returns.
+  // If the host receives the vehicle back, they should be able to complete the trip.
+
+  const parsedExtra = Math.max(0, Number(extraCharge) || 0);
+  const deduction = Math.min(parsedExtra, booking.securityDepositHeld);
+  const depositRefund = booking.securityDepositHeld - deduction;
+
+  // Transition to Completed
+  booking.status = "Completed";
+  booking.returnedAt = new Date();
+  booking.extraCharge = parsedExtra;
+  await booking.save();
+
+  const transactions = [];
+
+  if (deduction > 0) {
+    // Deduct damage/overage from deposit
+    transactions.push(
+      Transaction.create({
+        booking: booking._id,
+        user: booking.customer,
+        type: "Deposit_Deduction",
+        amount: deduction,
+        currency: "INR",
+        status: "Succeeded",
+        gateway: "Simulated",
+        gatewayPaymentIntentId: `SIM-${booking._id}-DED`,
+        note: `Extra/damage charge of ₹${deduction} deducted from security deposit of ₹${booking.securityDepositHeld}`,
+      })
+    );
+  }
+
+  if (depositRefund > 0) {
+    // Refund the remaining deposit balance
+    transactions.push(
+      Transaction.create({
+        booking: booking._id,
+        user: booking.customer,
+        type: "Deposit_Refund",
+        amount: depositRefund,
+        currency: "INR",
+        status: "Succeeded",
+        gateway: "Simulated",
+        gatewayPaymentIntentId: `SIM-${booking._id}-DEPREF`,
+        note: `Security deposit refund of ₹${depositRefund} after ₹${deduction} deduction`,
+      })
+    );
+  } else if (deduction === 0) {
+    // Full clean release
+    transactions.push(
+      Transaction.create({
+        booking: booking._id,
+        user: booking.customer,
+        type: "Hold_Release",
+        amount: booking.securityDepositHeld,
+        currency: "INR",
+        status: "Succeeded",
+        gateway: "Simulated",
+        gatewayPaymentIntentId: `SIM-${booking._id}-HOLDR`,
+        note: `Full security deposit of ₹${booking.securityDepositHeld} released — vehicle returned safely`,
+      })
+    );
+  }
+
+  // Mark host payout as Succeeded
+  await Transaction.findOneAndUpdate(
+    { booking: booking._id, type: "Payout", status: "Pending" },
+    { status: "Succeeded", note: `Host payout released on trip completion` }
+  );
+
+  await Promise.all(transactions);
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        bookingId: booking._id,
+        status: "Completed",
+        returnedAt: booking.returnedAt,
+        extraCharge: deduction,
+        depositRefund,
+      },
+      deduction > 0
+        ? `Trip completed. ₹${deduction} deducted from security deposit for extra charges. ₹${depositRefund} refunded to customer.`
+        : `Trip completed successfully! Full security deposit of ₹${booking.securityDepositHeld} released to customer.`
     )
   );
 });

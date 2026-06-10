@@ -38,3 +38,22 @@ export const PublicRoute = ({ children }) => {
 
   return children;
 };
+
+// Redirects to /dashboard if user is not an Admin
+export const AdminRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-zinc-950">
+        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user || user.role !== "Admin") {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+};

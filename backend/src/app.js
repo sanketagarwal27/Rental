@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import userRouter from "./routes/user.routes.js";
 import vehicleRouter from "./routes/vehicle.routes.js";
 import bookingRouter from "./routes/booking.routes.js";
+import adminRouter from "./routes/admin.routes.js";
 
 const app = express();
 app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
@@ -18,6 +19,7 @@ app.use(cookieParser());
 app.use("/api/user", userRouter);
 app.use("/api/vehicle", vehicleRouter);
 app.use("/api/booking", bookingRouter);
+app.use("/api/admin", adminRouter);
 
 // Global error handler — must be after all routes
 app.use((err, req, res, next) => {

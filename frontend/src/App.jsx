@@ -2,8 +2,9 @@ import Home from "./pages/Home";
 import { Routes, Route } from "react-router-dom";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
-import { ProtectedRoute, PublicRoute } from "./components/RouteGuards";
+import { ProtectedRoute, PublicRoute, AdminRoute } from "./components/RouteGuards";
 import Profile from "./pages/Profile";
+import AdminPanel from "./pages/AdminPanel";
 import VerifyEmail from "./pages/VerifyEmail";
 import ListVehicle from "./pages/ListVehicle";
 import MyVehicles from "./pages/MyVehicles";
@@ -74,6 +75,14 @@ function App() {
             <ProtectedRoute>
               <BookingPage />
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <AdminPanel />
+            </AdminRoute>
           }
         />
       </Routes>
