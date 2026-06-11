@@ -1,6 +1,6 @@
 export const DB_NAME = "Rental";
 export const minDeposit = {
-  //Like [minimum, %of booking value]
+  //Like [minimum, %of booking value] for security deposit
   //2-Wheeler
   Scooter: [1000, 30],
   Commuter: [2000, 30],

@@ -176,7 +176,7 @@ export const changeCurrentPassword = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid Old Password");
   }
   user.password = newPassword;
-  await user.save({ validateBeforeSave: false });
+  await user.save();
 
   return res
     .status(200)
@@ -326,12 +326,20 @@ export const sendPhoneOtp = asyncHandler(async (req, res) => {
 
   // Dev-mode action: Log OTP directly to the console
   console.log("=================================================");
-  console.log(`[DEV MODE] SMS OTP for User ${user.name} (${user.phone}): ${otp}`);
+  console.log(
+    `[DEV MODE] SMS OTP for User ${user.name} (${user.phone}): ${otp}`,
+  );
   console.log("=================================================");
 
   res
     .status(200)
-    .json(new ApiResponse(200, {}, "OTP sent successfully! (Logged to console in dev)"));
+    .json(
+      new ApiResponse(
+        200,
+        {},
+        "OTP sent successfully! (Logged to console in dev)",
+      ),
+    );
 });
 
 export const verifyPhoneOtp = asyncHandler(async (req, res) => {
@@ -399,17 +407,17 @@ export const getUserDashboardData = asyncHandler(async (req, res) => {
   const earningsBreakdown = userDashboard.myEarnings || [];
 
   const completedBookings = earningsBreakdown.filter(
-    (b) => b.status === "Completed"
+    (b) => b.status === "Completed",
   );
 
   // Net earnings = 95% host payout (after 5% platform commission)
   const totalPayoutEarned = completedBookings.reduce(
     (sum, b) => sum + (b.hostPayout || b.totalPrice * 0.95 || 0),
-    0
+    0,
   );
   const totalPlatformFeeDeducted = completedBookings.reduce(
     (sum, b) => sum + (b.platformFee || b.totalPrice * 0.05 || 0),
-    0
+    0,
   );
 
   const profileDetails = {
@@ -429,7 +437,7 @@ export const getUserDashboardData = asyncHandler(async (req, res) => {
         vehiclesHosted: userDashboard.myListedVehicles || [],
         vehiclesRented: userDashboard.myTrips || [],
         financials: {
-          totalEarned: Math.round(totalPayoutEarned),      // 95% net to host
+          totalEarned: Math.round(totalPayoutEarned), // 95% net to host
           platformFeeDeducted: Math.round(totalPlatformFeeDeducted), // 5% platform cut
           totalRentedOutCount: earningsBreakdown.length,
           rentalBookingsList: earningsBreakdown,
