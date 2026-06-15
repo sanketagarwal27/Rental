@@ -89,7 +89,7 @@ const Sidebar = () => {
               </div>
               <div>
                 <h1 className="text-xl font-bold tracking-tight">
-                  AUTO<span className="text-blue-500">RENT</span>
+                  RENT<span className="text-blue-500">WHEELS</span>
                 </h1>
                 <p className="text-[10px] text-zinc-500 font-mono tracking-widest uppercase">
                   Vehicle Rentals
@@ -116,10 +116,7 @@ const Sidebar = () => {
                   end={item.to === "/dashboard"}
                   onClick={(e) => {
                     setIsOpen(false);
-                    if (
-                      item.to === "/list-vehicle" &&
-                      !user?.isVerifiedEmail
-                    ) {
+                    if (item.to === "/list-vehicle" && !user?.isVerifiedEmail) {
                       e.preventDefault();
                       toast.error(
                         "Verification Required: Your email must be verified in your Profile before you can host a vehicle.",
