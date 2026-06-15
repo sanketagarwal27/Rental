@@ -12,6 +12,9 @@ import {
   markPickedUp,
   markReturned,
   createPickupOrder,
+  acceptReturn,
+  createReturnPaymentOrder,
+  payAndAcceptReturn,
 } from "../controllers/booking.controller.js";
 
 const router = Router();
@@ -28,6 +31,9 @@ router.post("/reject-cancel/:bookingId", rejectCancellation);
 router.post("/pickup-order/:bookingId", createPickupOrder);
 router.post("/pickup/:bookingId", markPickedUp);
 router.post("/return/:bookingId", markReturned);
+router.post("/accept-return/:bookingId", acceptReturn);
+router.post("/return-payment-order/:bookingId", createReturnPaymentOrder);
+router.post("/pay-return/:bookingId", payAndAcceptReturn);
 router.get("/my", getMyBookings);
 
 export default router;

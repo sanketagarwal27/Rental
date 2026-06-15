@@ -21,15 +21,17 @@ import {
   forgotPasswordLimiter, 
   emailVerificationLimiter, 
   phoneVerificationLimiter, 
-  avatarUpdateLimiter 
+  avatarUpdateLimiter,
+  loginLimiter,
+  registerLimiter
 } from "../middlewares/limiter.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
-router.route("/register").post(registerUser);
+router.route("/register").post(registerLimiter, registerUser);
 
-router.route("/login").post(loginUser);
+router.route("/login").post(loginLimiter, loginUser);
 
 router.route("/forgot-password").post(forgotPasswordLimiter, forgotPassword);
 router.route("/reset-password/:token").post(resetPassword);

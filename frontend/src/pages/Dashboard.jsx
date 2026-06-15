@@ -31,6 +31,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import SupportChat from "../components/SupportChat";
 
 // Helper to format currency in INR (₹)
 const formatINR = (val) => {
@@ -61,12 +62,13 @@ const RenterView = ({
   cancellingId,
   onRejectCancellation,
   rejectingId,
-  onSelectBooking,
   onPickedUp,
   pickingUpId,
+  onReturnAction,
+  returnActionId,
 }) => {
   const navigate = useNavigate();
-  const [tripFilter, setTripFilter] = useState("Upcoming");
+  const [tripFilter, setTripFilter] = useState("Ongoing");
   const [visibleTripsCount, setVisibleTripsCount] = useState(5);
 
   const today = new Date();
@@ -76,7 +78,8 @@ const RenterView = ({
     if (bk.status === "Cancelled" || bk.status === "Rejected")
       return "Cancelled";
     if (bk.status === "Completed") return "Completed";
-    if (bk.status === "Ongoing") return "Ongoing";
+    if (bk.status === "Ongoing" || bk.status === "Return_Requested")
+      return "Ongoing";
     // Confirmed bookings stay "Upcoming" until customer clicks Picked Up
     return "Upcoming";
   };
@@ -233,6 +236,19 @@ const RenterView = ({
                         <p className="text-xs text-zinc-500 mt-0.5 flex items-center gap-1">
                           <MapPin className="w-3 h-3" /> {bk.vehicle?.address}
                         </p>
+                        {bk.pickupLocation &&
+                          (bk.status === "Confirmed" ||
+                            bk.status === "Ongoing") && (
+                            <div className="mt-1.5 p-2 bg-blue-500/10 border border-blue-500/20 rounded-lg inline-flex items-start gap-1.5">
+                              <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
+                              <p className="text-xs text-blue-300 font-medium">
+                                Exact Pickup Location:{" "}
+                                <span className="text-blue-200">
+                                  {bk.pickupLocation}
+                                </span>
+                              </p>
+                            </div>
+                          )}
                         <p className="text-xs text-zinc-600 mt-0.5">
                           {new Date(bk.startDate).toLocaleDateString()} →{" "}
                           {new Date(bk.endDate).toLocaleDateString()}
@@ -420,6 +436,73 @@ const RenterView = ({
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                         Trip in progress — vehicle picked up
                       </span>
+                    </div>
+                  )}
+
+                  {/* Return Requested Action */}
+                  {bk.status === "Return_Requested" && (
+                    <div className="ml-14 flex flex-col items-start gap-2 mt-2">
+                      <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 w-full space-y-2">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-semibold text-amber-300">
+                              Host has marked this vehicle as returned
+                            </p>
+                            {bk.returnRequest?.damages?.length > 0 ? (
+                              <div className="text-[11px] text-amber-400/90 mt-1.5">
+                                <p className="font-medium mb-1 border-b border-amber-500/20 pb-1">
+                                  Damages/Extra Charges reported:
+                                </p>
+                                <ul className="list-none space-y-1 mt-1">
+                                  {bk.returnRequest.damages.map((d, idx) => (
+                                    <li
+                                      key={idx}
+                                      className="flex justify-between"
+                                    >
+                                      <span>{d.type}</span>
+                                      <span className="font-mono">
+                                        {formatINR(d.amount)}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                                <div className="mt-2 pt-1 border-t border-amber-500/20 flex justify-between font-bold text-amber-300">
+                                  <span>Total Deduction:</span>
+                                  <span>
+                                    {formatINR(
+                                      bk.returnRequest.totalExtraCharge,
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-[11px] text-amber-400/80 mt-1">
+                                No extra charges reported. Full security deposit
+                                will be refunded.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            onClick={() =>
+                              onReturnAction(
+                                bk._id,
+                                bk.returnRequest?.totalExtraCharge || 0,
+                                bk.securityDepositHeld || 0,
+                              )
+                            }
+                            disabled={returnActionId === bk._id}
+                            className="text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg transition shadow-md shadow-amber-600/20 cursor-pointer disabled:opacity-50 w-full flex items-center justify-center gap-2"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            {returnActionId === bk._id
+                              ? "Processing…"
+                              : "Accept & Complete Trip"}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -821,7 +904,11 @@ const HostView = ({
                           <div className="flex justify-end pt-1">
                             <button
                               onClick={() =>
-                                onMarkReturned(req._id, req.securityDepositHeld)
+                                onMarkReturned(
+                                  req._id,
+                                  req.securityDepositHeld,
+                                  req.vehicle?.pricePerDay || 0,
+                                )
                               }
                               disabled={returningId === req._id}
                               className="flex items-center gap-1.5 text-[11px] font-bold text-violet-300 hover:text-white bg-violet-600/20 hover:bg-violet-600 border border-violet-500/30 hover:border-violet-500 px-2.5 py-1 rounded-lg transition cursor-pointer disabled:opacity-50"
@@ -935,11 +1022,20 @@ const Dashboard = () => {
     bookingId: null,
     remainingAmount: 0,
   });
+
+  const [returnPayModal, setReturnPayModal] = useState({
+    isOpen: false,
+    bookingId: null,
+    paymentDue: 0,
+  });
+
+  const [returnActionId, setReturnActionId] = useState(null);
   const [returnModal, setReturnModal] = useState({
     isOpen: false,
     bookingId: null,
     depositHeld: 0,
-    extraCharge: "",
+    pricePerDay: 0,
+    damages: [], // [{ type: "Scratch", amount: 500 }]
   });
 
   const onCancelBooking = (bookingId, mode) => {
@@ -1067,10 +1163,10 @@ const Dashboard = () => {
       await new Promise((resolve) => {
         const options = {
           key:
-            import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_SyqAjPjjlhIZRr",
+            import.meta.env.VITE_RAZORPAY_KEY_ID,
           amount,
           currency,
-          name: "Rental App",
+          name: "RentWheels",
           description: `Remaining trip payment — ${formatINR(remainingAmount)}`,
           order_id: orderId,
           handler: async function (response) {
@@ -1120,37 +1216,164 @@ const Dashboard = () => {
     }
   };
 
-  const onMarkReturned = (bookingId, depositHeld) => {
-    setReturnModal({ isOpen: true, bookingId, depositHeld, extraCharge: "" });
+  const handleReturnAction = async (bookingId, totalAmount, depositHeld) => {
+    if (totalAmount <= depositHeld) {
+      try {
+        setReturnActionId(bookingId);
+        const { toast } = await import("sonner");
+        const { acceptReturn } = await import("../api/booking");
+        const res = await acceptReturn(bookingId);
+        toast.success(res.message || "Return completed successfully");
+        fetchDashboard();
+      } catch (err) {
+        const { toast } = await import("sonner");
+        toast.error(
+          err?.response?.data?.message || "Failed to complete return",
+        );
+      } finally {
+        setReturnActionId(null);
+      }
+    } else {
+      setReturnPayModal({
+        isOpen: true,
+        bookingId,
+        paymentDue: totalAmount - depositHeld,
+      });
+    }
+  };
+
+  const handleConfirmReturnPayment = async () => {
+    const { bookingId, paymentDue } = returnPayModal;
+    if (!bookingId) return;
+
+    setReturnPayModal({ isOpen: false, bookingId: null, paymentDue: 0 });
+
+    try {
+      setReturnActionId(bookingId);
+      const { toast } = await import("sonner");
+
+      await new Promise((resolve, reject) => {
+        if (window.Razorpay) {
+          resolve();
+          return;
+        }
+        const s = document.createElement("script");
+        s.src = "https://checkout.razorpay.com/v1/checkout.js";
+        s.onload = resolve;
+        s.onerror = () => reject(new Error("Failed to load Razorpay SDK"));
+        document.body.appendChild(s);
+      });
+
+      const { createReturnPaymentOrder, payAndAcceptReturn } =
+        await import("../api/booking");
+      const orderRes = await createReturnPaymentOrder(bookingId);
+      if (!orderRes?.success) throw new Error("Could not create payment order");
+
+      const { orderId, amount, currency } = orderRes.data;
+
+      await new Promise((resolve) => {
+        const options = {
+          key:
+            import.meta.env.VITE_RAZORPAY_KEY_ID,
+          amount,
+          currency,
+          name: "RentWheels",
+          description: `Extra Return Charges — ${formatINR(paymentDue)}`,
+          order_id: orderId,
+          handler: async function (response) {
+            try {
+              const res = await payAndAcceptReturn(bookingId, {
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+              toast.success(
+                res.message || "Payment confirmed! Trip completed.",
+              );
+              fetchDashboard();
+            } catch (err) {
+              toast.error(
+                err?.response?.data?.message ||
+                  "Payment verified but completion failed.",
+              );
+            } finally {
+              resolve();
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              toast.info("Payment cancelled.");
+              resolve();
+            },
+          },
+          theme: { color: "#F59E0B" },
+        };
+        const rzp = new window.Razorpay(options);
+        rzp.on("payment.failed", function (response) {
+          toast.error(response.error.description || "Payment failed.");
+          resolve();
+        });
+        rzp.open();
+      });
+    } catch (err) {
+      const { toast } = await import("sonner");
+      toast.error(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Could not initiate payment.",
+      );
+    } finally {
+      setReturnActionId(null);
+    }
+  };
+
+  const onMarkReturned = (bookingId, depositHeld, pricePerDay) => {
+    setReturnModal({
+      isOpen: true,
+      bookingId,
+      depositHeld,
+      pricePerDay,
+      damages: [],
+    });
   };
 
   const handleConfirmReturn = async () => {
-    const { bookingId, extraCharge } = returnModal;
+    const { bookingId, damages, depositHeld, pricePerDay } = returnModal;
     if (!bookingId) return;
-    const extra = parseFloat(extraCharge) || 0;
-    if (extra < 0) {
+
+    const totalExtraCharge = damages.reduce(
+      (sum, d) => sum + (Number(d.amount) || 0),
+      0,
+    );
+    const maxAllowedCharge = depositHeld + 2 * pricePerDay;
+
+    if (totalExtraCharge > maxAllowedCharge) {
       const { toast } = await import("sonner");
-      toast.error("Extra charge cannot be negative.");
+      toast.error(
+        `Extra charges cannot exceed maximum allowed limit of ₹${maxAllowedCharge}.`,
+      );
       return;
     }
+
     try {
       setReturningId(bookingId);
       setReturnModal({
         isOpen: false,
         bookingId: null,
         depositHeld: 0,
-        extraCharge: "",
+        pricePerDay: 0,
+        damages: [],
       });
       const { toast } = await import("sonner");
       const { markReturned } = await import("../api/booking");
-      const res = await markReturned(bookingId, extra);
-      toast.success(res.message || "Vehicle return confirmed! Trip completed.");
+      const res = await markReturned(bookingId, damages);
+      toast.success(res.message || "Vehicle return requested successfully.");
       fetchDashboard();
     } catch (err) {
       const { toast } = await import("sonner");
       toast.error(
         err?.response?.data?.message ||
-          "Could not confirm return. Please try again.",
+          "Could not process return. Please try again.",
       );
     } finally {
       setReturningId(null);
@@ -1247,6 +1470,8 @@ const Dashboard = () => {
               onSelectBooking={setSelectedBooking}
               onPickedUp={onPickedUp}
               pickingUpId={pickingUpId}
+              onReturnAction={handleReturnAction}
+              returnActionId={returnActionId}
             />
           ) : (
             <HostView
@@ -1436,6 +1661,70 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* Renter Return Pay Modal */}
+      {returnPayModal.isOpen && (
+        <div className="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-md w-full space-y-4 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <AlertCircle className="w-5 h-5 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-zinc-100 text-base">
+                  Pay Extra Return Charges
+                </h3>
+                <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                  The damage/extra charges exceed your security deposit. Please
+                  pay the remaining balance to complete the trip.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-amber-500/8 border border-amber-500/20 rounded-xl p-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-zinc-400">Due via Razorpay</p>
+                <p className="text-[10px] text-zinc-600 mt-0.5">
+                  Securely processed
+                </p>
+              </div>
+              <span className="text-xl font-bold text-amber-400">
+                {formatINR(returnPayModal.paymentDue)}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 text-[11px] text-zinc-500 bg-zinc-800/50 rounded-lg px-3 py-2">
+              <Shield className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span>
+                Payment is verified by Razorpay. Your trip will be marked as
+                Completed after payment.
+              </span>
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() =>
+                  setReturnPayModal({
+                    isOpen: false,
+                    bookingId: null,
+                    paymentDue: 0,
+                  })
+                }
+                className="flex-1 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium text-xs border border-zinc-700 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmReturnPayment}
+                className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition cursor-pointer flex items-center justify-center gap-2"
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                Pay {formatINR(returnPayModal.paymentDue)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Return Confirmation Modal */}
       {returnModal.isOpen && (
         <div className="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -1469,64 +1758,150 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
-                Extra / Damage Charges{" "}
-                <span className="text-zinc-600 normal-case">(optional)</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 text-sm font-semibold pointer-events-none">
-                  ₹
-                </span>
-                <input
-                  type="number"
-                  min="0"
-                  max={returnModal.depositHeld}
-                  value={returnModal.extraCharge}
-                  onChange={(e) =>
+            <div className="flex flex-col gap-3">
+              <div className="flex justify-between items-center">
+                <label className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
+                  Extra / Damage Charges
+                </label>
+                <button
+                  onClick={() =>
                     setReturnModal((prev) => ({
                       ...prev,
-                      extraCharge: e.target.value,
+                      damages: [
+                        ...prev.damages,
+                        { type: "Scratch", amount: "" },
+                      ],
                     }))
                   }
-                  placeholder="0"
-                  className="w-full bg-zinc-800/60 border border-zinc-700/60 rounded-xl pl-8 pr-4 py-2.5 text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none focus:border-violet-500/60 transition"
-                />
+                  className="text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2 py-1 rounded border border-zinc-700 transition cursor-pointer"
+                >
+                  + Add Charge
+                </button>
               </div>
-              {parseFloat(returnModal.extraCharge) > 0 ? (
-                <p className="text-[11px] text-zinc-500 mt-1 leading-relaxed">
-                  Customer refund:{" "}
-                  <span className="text-emerald-400 font-semibold">
-                    {formatINR(
-                      Math.max(
-                        0,
-                        returnModal.depositHeld -
-                          Math.min(
-                            parseFloat(returnModal.extraCharge),
-                            returnModal.depositHeld,
-                          ),
-                      ),
-                    )}
-                  </span>{" "}
-                  after{" "}
-                  <span className="text-rose-400 font-semibold">
-                    {formatINR(
-                      Math.min(
-                        parseFloat(returnModal.extraCharge),
-                        returnModal.depositHeld,
-                      ),
-                    )}
-                  </span>{" "}
-                  deduction.
-                </p>
-              ) : (
-                <p className="text-[11px] text-zinc-500 mt-1">
-                  No charges — full deposit of{" "}
+
+              {returnModal.damages.length === 0 ? (
+                <p className="text-[11px] text-zinc-500 bg-zinc-800/30 p-3 rounded-xl border border-zinc-800/50">
+                  No charges added. Full deposit of{" "}
                   <span className="text-amber-400 font-semibold">
                     {formatINR(returnModal.depositHeld)}
                   </span>{" "}
                   will be released to customer.
                 </p>
+              ) : (
+                <div className="space-y-2">
+                  {returnModal.damages.map((damage, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <select
+                        value={damage.type}
+                        onChange={(e) => {
+                          const newDamages = [...returnModal.damages];
+                          newDamages[idx].type = e.target.value;
+                          setReturnModal((prev) => ({
+                            ...prev,
+                            damages: newDamages,
+                          }));
+                        }}
+                        className="flex-1 bg-zinc-800/60 border border-zinc-700/60 rounded-xl px-3 py-2 text-zinc-100 text-sm focus:outline-none focus:border-violet-500/60 cursor-pointer"
+                      >
+                        <option
+                          value="Scratch"
+                          className="bg-zinc-900 text-zinc-100"
+                        >
+                          Scratch
+                        </option>
+                        <option
+                          value="Dent"
+                          className="bg-zinc-900 text-zinc-100"
+                        >
+                          Dent
+                        </option>
+                        <option
+                          value="Missing Fuel"
+                          className="bg-zinc-900 text-zinc-100"
+                        >
+                          Missing Fuel
+                        </option>
+                        <option
+                          value="Late Return"
+                          className="bg-zinc-900 text-zinc-100"
+                        >
+                          Late Return
+                        </option>
+                        <option
+                          value="Dirty Interior"
+                          className="bg-zinc-900 text-zinc-100"
+                        >
+                          Dirty Interior
+                        </option>
+                        <option
+                          value="Other"
+                          className="bg-zinc-900 text-zinc-100"
+                        >
+                          Other
+                        </option>
+                      </select>
+                      <div className="relative w-28">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm pointer-events-none">
+                          ₹
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={damage.amount}
+                          onChange={(e) => {
+                            const newDamages = [...returnModal.damages];
+                            newDamages[idx].amount = e.target.value;
+                            setReturnModal((prev) => ({
+                              ...prev,
+                              damages: newDamages,
+                            }));
+                          }}
+                          placeholder="0"
+                          className="w-full bg-zinc-800/60 border border-zinc-700/60 rounded-xl pl-7 pr-3 py-2 text-zinc-100 text-sm focus:outline-none focus:border-violet-500/60"
+                        />
+                      </div>
+                      <button
+                        onClick={() => {
+                          const newDamages = [...returnModal.damages];
+                          newDamages.splice(idx, 1);
+                          setReturnModal((prev) => ({
+                            ...prev,
+                            damages: newDamages,
+                          }));
+                        }}
+                        className="p-1 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                        title="Remove"
+                      >
+                        <span className="font-bold text-lg leading-none">
+                          ×
+                        </span>
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Summary */}
+                  <div className="mt-2 p-3 bg-zinc-950/40 rounded-xl border border-zinc-800/50 space-y-1">
+                    <p className="text-[11px] text-zinc-400 flex justify-between">
+                      <span>Total Extra Charges:</span>
+                      <span className="text-rose-400 font-semibold">
+                        {formatINR(
+                          returnModal.damages.reduce(
+                            (sum, d) => sum + (Number(d.amount) || 0),
+                            0,
+                          ),
+                        )}
+                      </span>
+                    </p>
+                    <p className="text-[11px] text-zinc-400 flex justify-between">
+                      <span>Maximum Allowed:</span>
+                      <span className="text-zinc-300 font-semibold">
+                        {formatINR(
+                          returnModal.depositHeld + 2 * returnModal.pricePerDay,
+                        )}
+                      </span>
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
 
@@ -1537,7 +1912,8 @@ const Dashboard = () => {
                     isOpen: false,
                     bookingId: null,
                     depositHeld: 0,
-                    extraCharge: "",
+                    pricePerDay: 0,
+                    damages: [],
                   })
                 }
                 className="flex-1 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium text-xs border border-zinc-700 transition cursor-pointer"
@@ -1811,6 +2187,9 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Support Chat Widget */}
+      <SupportChat isWidget={true} />
     </div>
   );
 };

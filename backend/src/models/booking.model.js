@@ -52,7 +52,7 @@ const BookingSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["Locked", "Pending", "Confirmed", "Ongoing", "Completed", "Cancelled"],
+      enum: ["Locked", "Pending", "Confirmed", "Ongoing", "Return_Requested", "Completed", "Cancelled"],
       default: "Locked",
     },
     paymentStatus: {
@@ -86,8 +86,23 @@ const BookingSchema = new Schema(
       reason: { type: String },
       requestedAt: { type: Date }
     },
+    returnRequest: {
+      isRequested: { type: Boolean, default: false },
+      damages: [
+        {
+          type: { type: String },
+          amount: { type: Number },
+        }
+      ],
+      totalExtraCharge: { type: Number, default: 0 },
+      requestedAt: { type: Date }
+    },
   },
   { timestamps: true },
 );
+
+BookingSchema.index({ customer: 1, status: 1 });
+BookingSchema.index({ provider: 1, status: 1 });
+BookingSchema.index({ lockedUntil: 1 });
 
 export const Booking = mongoose.model("Booking", BookingSchema);

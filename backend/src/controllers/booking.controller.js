@@ -739,13 +739,13 @@ export const markPickedUp = asyncHandler(async (req, res) => {
 // ─── Mark Returned (Host) ────────────────────────────────────────────────────
 export const markReturned = asyncHandler(async (req, res) => {
   const { bookingId } = req.params;
-  const { extraCharge = 0 } = req.body;
+  const { damages = [] } = req.body;
 
   const booking = await Booking.findOne({
     _id: bookingId,
     provider: req.user._id,
     status: "Ongoing",
-  });
+  }).populate("vehicle");
 
   if (!booking) {
     throw new ApiError(
@@ -754,23 +754,126 @@ export const markReturned = asyncHandler(async (req, res) => {
     );
   }
 
-  // Date check removed to allow early returns or timezone-mismatched returns.
-  // If the host receives the vehicle back, they should be able to complete the trip.
+  const totalExtraCharge = damages.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+  const maxAllowedCharge = booking.securityDepositHeld + (2 * (booking.vehicle.pricePerDay || 0));
 
-  const parsedExtra = Math.max(0, Number(extraCharge) || 0);
-  const deduction = Math.min(parsedExtra, booking.securityDepositHeld);
+  if (totalExtraCharge > maxAllowedCharge) {
+    throw new ApiError(400, `Extra charges cannot exceed maximum allowed limit of ₹${maxAllowedCharge}.`);
+  }
+
+  if (totalExtraCharge === 0) {
+    // Clean return: complete immediately
+    booking.status = "Completed";
+    booking.returnedAt = new Date();
+    booking.extraCharge = 0;
+    await booking.save();
+
+    // Free up vehicle dates
+    const start = new Date(booking.startDate);
+    const end = new Date(booking.endDate);
+    const datesToRemove = getDatesBetween(start, end);
+    await Vehicle.findByIdAndUpdate(booking.vehicle._id, {
+      $pull: { unavailableDates: { $in: datesToRemove } },
+    });
+
+    // Release security deposit
+    await Transaction.create({
+      booking: booking._id,
+      user: booking.customer,
+      type: "Hold_Release",
+      amount: booking.securityDepositHeld,
+      currency: "INR",
+      status: "Succeeded",
+      gateway: "Simulated",
+      gatewayPaymentIntentId: `SIM-${booking._id}-HOLDR`,
+      note: `Full security deposit of ₹${booking.securityDepositHeld} released — vehicle returned safely`,
+    });
+
+    // Mark host payout as Succeeded
+    await Transaction.findOneAndUpdate(
+      { booking: booking._id, type: "Payout", status: "Pending" },
+      { status: "Succeeded", note: `Host payout released on trip completion` }
+    );
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          bookingId: booking._id,
+          status: "Completed",
+          returnedAt: booking.returnedAt,
+          extraCharge: 0,
+          depositRefund: booking.securityDepositHeld
+        },
+        "Trip completed successfully! Full security deposit released to customer."
+      )
+    );
+  } else {
+    // Return with charges: pending customer approval
+    booking.status = "Return_Requested";
+    booking.returnRequest = {
+      isRequested: true,
+      damages,
+      totalExtraCharge,
+      requestedAt: new Date()
+    };
+    await booking.save();
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          bookingId: booking._id,
+          status: "Return_Requested",
+          totalExtraCharge
+        },
+        "Return requested. The customer must approve the extra charges to complete the trip."
+      )
+    );
+  }
+});
+
+// ─── Accept Return (Customer - when charge <= deposit) ──────────────────────
+export const acceptReturn = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+
+  const booking = await Booking.findOne({
+    _id: bookingId,
+    customer: req.user._id,
+    status: "Return_Requested",
+  });
+
+  if (!booking || !booking.returnRequest?.isRequested) {
+    throw new ApiError(404, "Return request not found or not pending.");
+  }
+
+  const { totalExtraCharge } = booking.returnRequest;
+
+  if (totalExtraCharge > booking.securityDepositHeld) {
+    throw new ApiError(400, "Extra charges exceed your security deposit. Please pay the remaining balance to complete the return.");
+  }
+
+  const deduction = totalExtraCharge;
   const depositRefund = booking.securityDepositHeld - deduction;
 
-  // Transition to Completed
   booking.status = "Completed";
   booking.returnedAt = new Date();
-  booking.extraCharge = parsedExtra;
+  booking.extraCharge = deduction;
+  booking.hostPayout += deduction;
+  booking.returnRequest = undefined;
   await booking.save();
+
+  // Free up vehicle dates
+  const start = new Date(booking.startDate);
+  const end = new Date(booking.endDate);
+  const datesToRemove = getDatesBetween(start, end);
+  await Vehicle.findByIdAndUpdate(booking.vehicle, {
+    $pull: { unavailableDates: { $in: datesToRemove } },
+  });
 
   const transactions = [];
 
   if (deduction > 0) {
-    // Deduct damage/overage from deposit
     transactions.push(
       Transaction.create({
         booking: booking._id,
@@ -781,13 +884,12 @@ export const markReturned = asyncHandler(async (req, res) => {
         status: "Succeeded",
         gateway: "Simulated",
         gatewayPaymentIntentId: `SIM-${booking._id}-DED`,
-        note: `Extra/damage charge of ₹${deduction} deducted from security deposit of ₹${booking.securityDepositHeld}`,
+        note: `Damage/extra charge of ₹${deduction} deducted from security deposit`,
       })
     );
   }
 
   if (depositRefund > 0) {
-    // Refund the remaining deposit balance
     transactions.push(
       Transaction.create({
         booking: booking._id,
@@ -801,27 +903,15 @@ export const markReturned = asyncHandler(async (req, res) => {
         note: `Security deposit refund of ₹${depositRefund} after ₹${deduction} deduction`,
       })
     );
-  } else if (deduction === 0) {
-    // Full clean release
-    transactions.push(
-      Transaction.create({
-        booking: booking._id,
-        user: booking.customer,
-        type: "Hold_Release",
-        amount: booking.securityDepositHeld,
-        currency: "INR",
-        status: "Succeeded",
-        gateway: "Simulated",
-        gatewayPaymentIntentId: `SIM-${booking._id}-HOLDR`,
-        note: `Full security deposit of ₹${booking.securityDepositHeld} released — vehicle returned safely`,
-      })
-    );
   }
 
-  // Mark host payout as Succeeded
   await Transaction.findOneAndUpdate(
     { booking: booking._id, type: "Payout", status: "Pending" },
-    { status: "Succeeded", note: `Host payout released on trip completion` }
+    { 
+      status: "Succeeded", 
+      amount: booking.hostPayout,
+      note: `Host payout released on trip completion (includes ₹${deduction} extra charges)` 
+    }
   );
 
   await Promise.all(transactions);
@@ -833,12 +923,155 @@ export const markReturned = asyncHandler(async (req, res) => {
         bookingId: booking._id,
         status: "Completed",
         returnedAt: booking.returnedAt,
-        extraCharge: deduction,
-        depositRefund,
       },
-      deduction > 0
-        ? `Trip completed. ₹${deduction} deducted from security deposit for extra charges. ₹${depositRefund} refunded to customer.`
-        : `Trip completed successfully! Full security deposit of ₹${booking.securityDepositHeld} released to customer.`
+      `Return accepted. ₹${deduction} deducted from security deposit.`
+    )
+  );
+});
+
+// ─── Create Return Payment Order (Customer - when charge > deposit) ─────────
+export const createReturnPaymentOrder = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+
+  const booking = await Booking.findOne({
+    _id: bookingId,
+    customer: req.user._id,
+    status: "Return_Requested",
+  });
+
+  if (!booking || !booking.returnRequest?.isRequested) {
+    throw new ApiError(404, "Return request not found or not pending.");
+  }
+
+  const remainingAmount = booking.returnRequest.totalExtraCharge - booking.securityDepositHeld;
+
+  if (remainingAmount <= 0) {
+    throw new ApiError(400, "No additional payment required. Please just accept the return.");
+  }
+
+  const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_API_KEY,
+    key_secret: process.env.RAZORPAY_API_SECRET,
+  });
+
+  const options = {
+    amount: remainingAmount * 100,
+    currency: "INR",
+    receipt: `${bookingId}-return`,
+  };
+
+  try {
+    const order = await razorpay.orders.create(options);
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          orderId: order.id,
+          amount: order.amount,
+          currency: order.currency,
+          remainingAmount,
+        },
+        "Return payment order created."
+      )
+    );
+  } catch (err) {
+    throw new ApiError(500, "Could not create Razorpay order for return.");
+  }
+});
+
+// ─── Pay & Accept Return (Customer - when charge > deposit) ─────────────────
+export const payAndAcceptReturn = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+  const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
+
+  const booking = await Booking.findOne({
+    _id: bookingId,
+    customer: req.user._id,
+    status: "Return_Requested",
+  });
+
+  if (!booking || !booking.returnRequest?.isRequested) {
+    throw new ApiError(404, "Return request not found or not pending.");
+  }
+
+  if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+    throw new ApiError(400, "Payment details are missing.");
+  }
+
+  const body = razorpay_order_id + "|" + razorpay_payment_id;
+  const expectedSignature = crypto
+    .createHmac("sha256", process.env.RAZORPAY_API_SECRET)
+    .update(body.toString())
+    .digest("hex");
+
+  if (expectedSignature !== razorpay_signature) {
+    throw new ApiError(400, "Invalid payment signature.");
+  }
+
+  const remainingAmount = booking.returnRequest.totalExtraCharge - booking.securityDepositHeld;
+
+  const totalExtra = booking.returnRequest.totalExtraCharge;
+
+  booking.status = "Completed";
+  booking.returnedAt = new Date();
+  booking.extraCharge = totalExtra;
+  booking.hostPayout += totalExtra;
+  booking.amountPaid += remainingAmount;
+  booking.returnRequest = undefined;
+  await booking.save();
+
+  // Free up vehicle dates
+  const start = new Date(booking.startDate);
+  const end = new Date(booking.endDate);
+  const datesToRemove = getDatesBetween(start, end);
+  await Vehicle.findByIdAndUpdate(booking.vehicle, {
+    $pull: { unavailableDates: { $in: datesToRemove } },
+  });
+
+  // Deduct entire deposit
+  await Transaction.create({
+    booking: booking._id,
+    user: booking.customer,
+    type: "Deposit_Deduction",
+    amount: booking.securityDepositHeld,
+    currency: "INR",
+    status: "Succeeded",
+    gateway: "Simulated",
+    gatewayPaymentIntentId: `SIM-${booking._id}-DED`,
+    note: `Full security deposit of ₹${booking.securityDepositHeld} deducted for damages`,
+  });
+
+  // Record overage payment
+  await Transaction.create({
+    booking: booking._id,
+    user: booking.customer,
+    type: "Overage_Fee",
+    amount: remainingAmount,
+    currency: "INR",
+    status: "Succeeded",
+    gateway: "Razorpay",
+    gatewayPaymentIntentId: razorpay_payment_id,
+    note: `Extra damage charge of ₹${remainingAmount} paid via Razorpay`,
+  });
+
+  await Transaction.findOneAndUpdate(
+    { booking: booking._id, type: "Payout", status: "Pending" },
+    { 
+      status: "Succeeded", 
+      amount: booking.hostPayout,
+      note: `Host payout released on trip completion (includes ₹${totalExtra} extra charges)` 
+    }
+  );
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        bookingId: booking._id,
+        status: "Completed",
+        returnedAt: booking.returnedAt,
+      },
+      "Return accepted and extra charges paid successfully."
     )
   );
 });

@@ -34,7 +34,7 @@ export default function VehicleCard({ title, image, price, tag, specs = [] }) {
             <h3 className="font-semibold text-xl text-zinc-100">{title}</h3>
 
             <div className="text-right">
-              <p className="text-blue-400 text-xl font-bold">${price}</p>
+              <p className="text-blue-400 text-xl font-bold">₹{price}</p>
 
               <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium mt-0.5">
                 / per day

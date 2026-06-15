@@ -10,6 +10,8 @@ import ListVehicle from "./pages/ListVehicle";
 import MyVehicles from "./pages/MyVehicles";
 import SearchResults from "./pages/SearchResults";
 import BookingPage from "./pages/BookingPage";
+import Messages from "./pages/Messages";
+import NotFound from "./pages/NotFound";
 function App() {
   return (
     <>
@@ -34,6 +36,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/messages"
+          element={
+            <ProtectedRoute>
+              <Messages />
             </ProtectedRoute>
           }
         />
@@ -85,6 +95,9 @@ function App() {
             </AdminRoute>
           }
         />
+
+        {/* 404 Catch-all */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </>
   );

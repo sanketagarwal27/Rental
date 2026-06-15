@@ -111,15 +111,42 @@ export const markPickedUp = async (bookingId, paymentData) => {
 };
 
 /**
- * Host confirms the vehicle has been returned.
- * Transitions booking: Ongoing → Completed
+ * Host requests the vehicle has been returned, potentially with damages.
+ * Transitions booking: Ongoing → Return_Requested or Completed
  * @param {string} bookingId
- * @param {number} [extraCharge=0] - Damage/overage fee to deduct from security deposit
+ * @param {Array} damages - Array of { type: string, amount: number }
  */
-export const markReturned = async (bookingId, extraCharge = 0) => {
+export const markReturned = async (bookingId, damages = []) => {
   const response = await api.post(
     `/booking/return/${bookingId}`,
-    { extraCharge },
+    { damages },
+    { withCredentials: true }
+  );
+  return response.data;
+};
+
+export const acceptReturn = async (bookingId) => {
+  const response = await api.post(
+    `/booking/accept-return/${bookingId}`,
+    {},
+    { withCredentials: true }
+  );
+  return response.data;
+};
+
+export const createReturnPaymentOrder = async (bookingId) => {
+  const response = await api.post(
+    `/booking/return-payment-order/${bookingId}`,
+    {},
+    { withCredentials: true }
+  );
+  return response.data;
+};
+
+export const payAndAcceptReturn = async (bookingId, paymentData) => {
+  const response = await api.post(
+    `/booking/pay-return/${bookingId}`,
+    paymentData,
     { withCredentials: true }
   );
   return response.data;

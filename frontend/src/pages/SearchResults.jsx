@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { searchVehicles } from "../api/vehicle";
 import { lockVehicle } from "../api/booking";
+import { getVehicleReviews } from "../api/review";
 import { useLocation as useLocationCtx } from "../context/LocationContext";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
@@ -304,63 +305,6 @@ const geocodeLocation = async (locationText) => {
   };
 };
 
-// ── Reviews Generator helper ────────────────────────────────────────────────
-const generateMockReviews = (vehicle) => {
-  const reviewerNames = [
-    "Rahul Sharma",
-    "Amit Patel",
-    "Sneha Reddy",
-    "Vikram Singh",
-    "Priya Nair",
-    "Rohan Gupta",
-  ];
-  const commentsByRating = {
-    5: [
-      "Absolutely perfect! Clean, fuel efficient, and runs extremely smoothly.",
-      "The vehicle was in pristine condition. Host was very accommodating.",
-      "Incredible experience! The power and comfort were outstanding. Highly recommend.",
-      "Smooth ride, easy pickup, and excellent mileage. 5 stars all the way!",
-    ],
-    4: [
-      "Great car, very comfortable. A minor scratch on the bumper but handled perfectly.",
-      "Very reliable and clean. Would definitely rent again for my next trip.",
-      "Good performance and mileage. The host was helpful and polite.",
-    ],
-    3: [
-      "Decent ride, but the interior could have been slightly cleaner.",
-      "Car runs fine, though it showed some age. Average experience.",
-      "Ac worked, driving was okay, but had a slight noise from front wheel.",
-    ],
-  };
-
-  const count = vehicle.totalReviews || 0;
-  const ratingRound = Math.round(vehicle.averageRating || 4);
-  const comments = commentsByRating[ratingRound] || commentsByRating[4];
-
-  const list = [];
-  for (let i = 0; i < count; i++) {
-    const rName =
-      reviewerNames[
-        (vehicle._id.charCodeAt(i % 24) + i) % reviewerNames.length
-      ];
-    const comment =
-      comments[(vehicle._id.charCodeAt((i + 1) % 24) + i) % comments.length];
-    const rate =
-      i === 0
-        ? Math.ceil(vehicle.averageRating)
-        : Math.floor(vehicle.averageRating);
-    list.push({
-      id: `${vehicle._id}-${i}`,
-      name: rName,
-      rating: Math.max(1, Math.min(5, rate)),
-      date: new Date(
-        Date.now() - i * 4 * 24 * 60 * 60 * 1000 - 2 * 24 * 60 * 60 * 1000,
-      ).toLocaleDateString(),
-      comment: comment,
-    });
-  }
-  return list;
-};
 
 // ── Main SearchResults Page ───────────────────────────────────────────────────
 const SearchResults = () => {
@@ -401,6 +345,8 @@ const SearchResults = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [resolvedCoords, setResolvedCoords] = useState(null);
   const [activeReviewVehicle, setActiveReviewVehicle] = useState(null);
+  const [vehicleReviews, setVehicleReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -570,6 +516,21 @@ const SearchResults = () => {
     setSelectedTypes([]);
     setSelectedFuels([]);
     setSelectedTransmissions([]);
+  };
+
+  // Fetch real reviews when modal opens
+  const handleViewReviews = async (vehicle) => {
+    setActiveReviewVehicle(vehicle);
+    setVehicleReviews([]);
+    setReviewsLoading(true);
+    try {
+      const res = await getVehicleReviews(vehicle._id, 1, 20);
+      setVehicleReviews(res.data?.data?.reviews || []);
+    } catch (err) {
+      console.error("Failed to fetch reviews:", err);
+    } finally {
+      setReviewsLoading(false);
+    }
   };
 
   const renderStars = (rating) => {
@@ -1002,7 +963,7 @@ const SearchResults = () => {
                         <VehicleCard
                           key={v._id}
                           vehicle={v}
-                          onViewReviews={setActiveReviewVehicle}
+                          onViewReviews={handleViewReviews}
                           searchStartDate={startDate}
                           searchEndDate={endDate}
                         />
@@ -1073,7 +1034,7 @@ const SearchResults = () => {
                           key={v._id}
                           vehicle={v}
                           altBadge={v._altReason}
-                          onViewReviews={setActiveReviewVehicle}
+                          onViewReviews={handleViewReviews}
                           searchStartDate={startDate}
                           searchEndDate={endDate}
                         />
@@ -1131,27 +1092,39 @@ const SearchResults = () => {
               </div>
 
               <div className="space-y-3 pt-2">
-                {generateMockReviews(activeReviewVehicle).map((rev) => (
-                  <div
-                    key={rev.id}
-                    className="border-b border-zinc-800/40 pb-3 last:border-0 last:pb-0"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="font-semibold text-zinc-200 text-xs">
-                        {rev.name}
-                      </div>
-                      <div className="text-[10px] text-zinc-500">
-                        {rev.date}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 mt-1">
-                      {renderStars(rev.rating)}
-                    </div>
-                    <p className="text-xs text-zinc-450 mt-1.5 leading-relaxed font-sans italic">
-                      "{rev.comment}"
-                    </p>
+                {reviewsLoading ? (
+                  <div className="flex items-center justify-center py-10">
+                    <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />
                   </div>
-                ))}
+                ) : vehicleReviews.length > 0 ? (
+                  vehicleReviews.map((rev) => (
+                    <div
+                      key={rev._id}
+                      className="border-b border-zinc-800/40 pb-3 last:border-0 last:pb-0"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="font-semibold text-zinc-200 text-xs">
+                          {rev.reviewer?.name || "Anonymous"}
+                        </div>
+                        <div className="text-[10px] text-zinc-500">
+                          {new Date(rev.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 mt-1">
+                        {renderStars(rev.rating)}
+                      </div>
+                      {rev.comment && (
+                        <p className="text-xs text-zinc-450 mt-1.5 leading-relaxed font-sans italic">
+                          "{rev.comment}"
+                        </p>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-zinc-500 py-6 text-center">
+                    No reviews yet for this vehicle.
+                  </p>
+                )}
               </div>
             </div>
           </div>

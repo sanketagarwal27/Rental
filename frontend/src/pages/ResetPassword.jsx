@@ -25,7 +25,7 @@ const ResetPassword = () => {
 
       const response = await resetPassword(token, { password });
 
-      toast.success(response.data.message || "Password reset successful");
+      toast.success(response.data?.data?.message || response.data?.message || "Password reset successful");
 
       setTimeout(() => {
         navigate("/");

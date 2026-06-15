@@ -271,10 +271,10 @@ const BookingPage = () => {
       const { orderId, amount, currency } = orderRes.data;
 
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_SyqAjPjjlhIZRr", // Using fallback if env not set
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: amount,
         currency: currency,
-        name: "Rental App",
+        name: "RentWheels",
         description: "Vehicle Booking Payment",
         order_id: orderId,
         handler: async function (response) {

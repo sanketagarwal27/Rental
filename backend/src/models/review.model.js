@@ -53,21 +53,30 @@ ReviewSchema.statics.calculateAverageRating = async function (id) {
     },
   ]);
   if (stats.length > 0) {
-    await mongoose.model("Vehicle").findByIdAndUpdate(vehicleId, {
+    await mongoose.model("Vehicle").findByIdAndUpdate(id, {
       totalReviews: stats[0].nRating,
       averageRating: Number(stats[0].avgRating.toFixed(1)),
     });
   } else {
     // Fallback if all reviews are deleted
-    await mongoose.model("Vehicle").findByIdAndUpdate(vehicleId, {
+    await mongoose.model("Vehicle").findByIdAndUpdate(id, {
       totalReviews: 0,
       averageRating: 0,
     });
   }
 };
-ReviewSchema.post("save", function () {
-  if (this.reviewType === "RenterToVehicle" && this.vehicle)
-    this.constructor.calculateAverageRating(this.vehicle);
+
+ReviewSchema.post("save", async function () {
+  try {
+    if (this.reviewType === "RenterToVehicle" && this.vehicle) {
+      await this.constructor.calculateAverageRating(this.vehicle);
+    }
+  } catch (err) {
+    console.error("Error calculating average rating:", err);
+  }
 });
-ReviewSchema.index({ booking: 1, reviewer: 1 }, { unique: true });
+
+// Allow one review per booking per reviewType (supports two-way reviews)
+ReviewSchema.index({ booking: 1, reviewer: 1, reviewType: 1 }, { unique: true });
+
 export const Review = mongoose.model("Review", ReviewSchema);

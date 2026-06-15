@@ -1,5 +1,5 @@
 import mongoose, { Schema } from "mongoose";
-import { validate, validate as vinValidate } from "vin-validator";
+import { validate as vinValidate } from "vin-validator";
 
 const VehicleSchema = new Schema(
   {
@@ -26,6 +26,8 @@ const VehicleSchema = new Schema(
     year: {
       type: Number,
       required: true,
+      min: [1900, "Year must be 1900 or later."],
+      max: [new Date().getFullYear() + 1, "Year cannot be in the far future."],
     },
     type: {
       type: String,
@@ -58,6 +60,8 @@ const VehicleSchema = new Schema(
     seats: {
       type: Number,
       required: true,
+      min: [1, "Must have at least 1 seat."],
+      max: [60, "Seats cannot exceed 60."],
     },
     averageRating: {
       type: Number,
@@ -120,6 +124,10 @@ const VehicleSchema = new Schema(
       required: true,
     },
     isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    isBlocked: {
       type: Boolean,
       default: false,
     },

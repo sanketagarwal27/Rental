@@ -64,6 +64,10 @@ const UserSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    isBlocked: {
+      type: Boolean,
+      default: false,
+    },
     phone: {
       type: String,
       validate: {
@@ -91,21 +95,35 @@ const UserSchema = new Schema(
     },
     passwordResetToken: {
       type: String,
+      select: false,
     },
     passwordResetExpires: {
       type: Date,
+      select: false,
     },
     emailVerificationToken: {
       type: String,
+      select: false,
     },
     emailVerificationExpires: {
       type: Date,
+      select: false,
     },
     phoneOtp: {
       type: String,
+      select: false,
     },
     phoneOtpExpires: {
       type: Date,
+      select: false,
+    },
+    adminActionOtp: {
+      type: String,
+      select: false,
+    },
+    adminActionOtpExpires: {
+      type: Date,
+      select: false,
     },
   },
   {

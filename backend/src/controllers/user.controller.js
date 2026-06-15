@@ -7,6 +7,7 @@ import ApiResponse from "../utils/ApiResponse.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import crypto from "crypto";
 import sendEmail from "../utils/sendEmail.js";
+import jwt from "jsonwebtoken";
 
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
@@ -45,7 +46,9 @@ export const registerUser = asyncHandler(async (req, res) => {
     email,
     password,
   });
-  const createdUser = await User.findById(user._id);
+  const createdUser = await User.findById(user._id).select(
+    "-passwordResetToken -passwordResetExpires -emailVerificationToken -emailVerificationExpires -phoneOtp -phoneOtpExpires -adminActionOtp -adminActionOtpExpires"
+  );
   if (!createdUser)
     throw new ApiError(500, "Something went wrong while registering the user");
   return res
@@ -145,18 +148,18 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
       sameSite: "lax",
       maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
     };
-    const { accessToken, newRefreshToken } =
+    const { accessToken, refreshToken } =
       await generateAccessAndRefreshTokens(user._id);
     return res
       .status(200)
       .cookie("accessToken", accessToken, accessTokenOptions)
-      .cookie("refreshToken", newRefreshToken, refreshTokenOptions)
+      .cookie("refreshToken", refreshToken, refreshTokenOptions)
       .json(
         new ApiResponse(
           200,
           {
             accessToken,
-            refreshToken: newRefreshToken,
+            refreshToken,
           },
           "Access Token Refreshed !",
         ),
@@ -264,7 +267,7 @@ export const sendEmailVerification = asyncHandler(async (req, res) => {
 
   const verifyUrl = `${process.env.FRONTEND_URL}/verify-email/${verifyToken}`;
   const message = `
-    Welcome to AutoRent!
+    Welcome to RentWheels!
 
     Please verify your email address by clicking the link below:
 
@@ -277,7 +280,7 @@ export const sendEmailVerification = asyncHandler(async (req, res) => {
 
   await sendEmail({
     email: user.email,
-    subject: "Verify Your Email - AutoRent",
+    subject: "Verify Your Email - RentWheels",
     message,
   });
 
@@ -450,9 +453,14 @@ export const getUserDashboardData = asyncHandler(async (req, res) => {
 
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
+  if (!email) throw new ApiError(400, "Email is required");
+
+  // Always return the same response to prevent user enumeration
+  const genericMessage = "If an account exists with this email, a password reset link has been sent.";
+
   const user = await User.findOne({ email });
   if (!user) {
-    throw new ApiError(404, "No account exists with this email address.");
+    return res.status(200).json(new ApiResponse(200, {}, genericMessage));
   }
   const resetToken = crypto.randomBytes(32).toString("hex");
   user.passwordResetToken = resetToken;
@@ -468,12 +476,17 @@ export const forgotPassword = asyncHandler(async (req, res) => {
 
     This link expires in 5 minutes.
   `;
-  await sendEmail({
-    email: user.email,
-    subject: "Password Reset",
-    message: message,
-  });
-  res.status(200).json(new ApiResponse(200, {}, "Reset email sent"));
+  try {
+    await sendEmail({
+      email: user.email,
+      subject: "Password Reset",
+      message: message,
+    });
+  } catch (err) {
+    // Don't expose email sending errors
+    console.error("Error sending password reset email:", err);
+  }
+  res.status(200).json(new ApiResponse(200, {}, genericMessage));
 });
 
 export const resetPassword = asyncHandler(async (req, res) => {

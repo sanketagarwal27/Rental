@@ -12,7 +12,10 @@ export const updateVehicleDetails = asyncHandler(async (req, res) => {
 
   const vehicle = await Vehicle.findOne({ _id: id, provider: req.user._id });
   if (!vehicle) {
-    throw new ApiError(404, "Vehicle not found or you are not authorized to update it.");
+    throw new ApiError(
+      404,
+      "Vehicle not found or you are not authorized to update it.",
+    );
   }
 
   if (pricePerDay !== undefined) {
@@ -23,7 +26,10 @@ export const updateVehicleDetails = asyncHandler(async (req, res) => {
     if (Array.isArray(features)) {
       featuresList = features;
     } else {
-      featuresList = String(features).split(",").map((f) => f.trim()).filter((f) => f);
+      featuresList = String(features)
+        .split(",")
+        .map((f) => f.trim())
+        .filter((f) => f);
     }
     vehicle.features = featuresList;
   }
@@ -33,7 +39,11 @@ export const updateVehicleDetails = asyncHandler(async (req, res) => {
 
   await vehicle.save();
 
-  return res.status(200).json(new ApiResponse(200, vehicle, "Vehicle details updated successfully."));
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, vehicle, "Vehicle details updated successfully."),
+    );
 });
 
 export const getNearbyVehicles = asyncHandler(async (req, res) => {
@@ -57,6 +67,7 @@ export const getNearbyVehicles = asyncHandler(async (req, res) => {
   const geoQuery = {
     isDeleted: false,
     isAvailable: true,
+    isBlocked: false,
     status: "Approved",
     location: {
       $geoWithin: {
@@ -312,10 +323,10 @@ export const updateAvailability = asyncHandler(async (req, res) => {
 
   const updateFields = {};
   if (Array.isArray(unavailableDates)) {
-    // Guard: ensure no confirmed booking dates are removed
+    // Guard: ensure no active booking dates are removed
     const confirmedBookings = await Booking.find({
       vehicle: id,
-      status: "Confirmed",
+      status: { $in: ["Locked", "Pending", "Confirmed", "Ongoing", "Return_Requested"] },
     });
 
     const activeBookedTimestamps = new Set();
@@ -334,14 +345,14 @@ export const updateAvailability = asyncHandler(async (req, res) => {
           const dNorm = new Date(d);
           dNorm.setUTCHours(0, 0, 0, 0);
           return dNorm.getTime();
-        })
+        }),
       );
 
       for (const timestamp of activeBookedTimestamps) {
         if (!newUnavailableTimestamps.has(timestamp)) {
           throw new ApiError(
             403,
-            "Cannot remove dates that are already booked by an active confirmed reservation."
+            "Cannot remove dates that are already booked by an active confirmed reservation.",
           );
         }
       }
@@ -363,7 +374,10 @@ export const updateAvailability = asyncHandler(async (req, res) => {
   }
 
   if (Object.keys(updateFields).length === 0) {
-    throw new ApiError(400, "Please provide fields to update (unavailableDates or isAvailable).");
+    throw new ApiError(
+      400,
+      "Please provide fields to update (unavailableDates or isAvailable).",
+    );
   }
 
   const vehicle = await Vehicle.findOneAndUpdate(
@@ -394,13 +408,23 @@ export const searchVehicles = asyncHandler(async (req, res) => {
   // Clean up stale locks before querying so they don't interfere with availability
   await cleanExpiredLocks();
 
-  const { lat, lng, radius = 30, startDate, endDate, page = 1, limit = 12 } = req.query;
+  const {
+    lat,
+    lng,
+    radius = 30,
+    startDate,
+    endDate,
+    page = 1,
+    limit = 12,
+  } = req.query;
 
-  if (!lat || !lng) throw new ApiError(400, "Latitude and longitude are required.");
+  if (!lat || !lng)
+    throw new ApiError(400, "Latitude and longitude are required.");
 
   const latitude = parseFloat(lat);
   const longitude = parseFloat(lng);
-  if (isNaN(latitude) || isNaN(longitude)) throw new ApiError(400, "Invalid coordinates.");
+  if (isNaN(latitude) || isNaN(longitude))
+    throw new ApiError(400, "Invalid coordinates.");
 
   const primaryRadius = parseFloat(radius);
   const altRadius = primaryRadius * 2;
@@ -413,7 +437,10 @@ export const searchVehicles = asyncHandler(async (req, res) => {
     start = new Date(startDate);
     end = new Date(endDate);
     if (isNaN(start) || isNaN(end) || start > end) {
-      throw new ApiError(400, "Invalid date range. startDate must be before endDate.");
+      throw new ApiError(
+        400,
+        "Invalid date range. startDate must be before endDate.",
+      );
     }
     dateFilter = {
       unavailableDates: {
@@ -427,6 +454,7 @@ export const searchVehicles = asyncHandler(async (req, res) => {
   const baseQuery = {
     isDeleted: false,
     isAvailable: true,
+    isBlocked: false,
     status: "Approved",
     provider: { $ne: req.user._id },
   };
@@ -435,10 +463,14 @@ export const searchVehicles = asyncHandler(async (req, res) => {
   const altRadians = altRadius / 6378.1;
 
   const geoFilterPrimary = {
-    location: { $geoWithin: { $centerSphere: [[longitude, latitude], primaryRadians] } },
+    location: {
+      $geoWithin: { $centerSphere: [[longitude, latitude], primaryRadians] },
+    },
   };
   const geoFilterAlt = {
-    location: { $geoWithin: { $centerSphere: [[longitude, latitude], altRadians] } },
+    location: {
+      $geoWithin: { $centerSphere: [[longitude, latitude], altRadians] },
+    },
   };
 
   const selectFields =
@@ -461,7 +493,11 @@ export const searchVehicles = asyncHandler(async (req, res) => {
     const primaryIds = new Set(primaryVehicles.map((v) => v._id.toString()));
 
     // ── Alt 1: within 2× radius, fully available (excludes primary results) ──
-    const altGeoVehicles = await Vehicle.find({ ...baseQuery, ...geoFilterAlt, ...dateFilter })
+    const altGeoVehicles = await Vehicle.find({
+      ...baseQuery,
+      ...geoFilterAlt,
+      ...dateFilter,
+    })
       .select(selectFields)
       .populate("provider", "name avatar")
       .limit(6)
@@ -509,14 +545,23 @@ export const searchVehicles = asyncHandler(async (req, res) => {
             radius: primaryRadius,
           },
           alternatives,
-          searchParams: { lat: latitude, lng: longitude, radius: primaryRadius, startDate, endDate },
+          searchParams: {
+            lat: latitude,
+            lng: longitude,
+            radius: primaryRadius,
+            startDate,
+            endDate,
+          },
         },
         "Search results fetched successfully.",
       ),
     );
   } catch (err) {
     if (err instanceof ApiError) throw err;
-    throw new ApiError(500, "Could not fetch search results. Please try again.");
+    throw new ApiError(
+      500,
+      "Could not fetch search results. Please try again.",
+    );
   }
 });
 
@@ -533,7 +578,7 @@ export const getVehicleById = asyncHandler(async (req, res) => {
     status: "Approved",
   })
     .select(
-      "brand model year type category fuelType transmission seats pricePerDay images address location averageRating totalReviews isAvailable unavailableDates provider features licensePlate"
+      "brand model year type category fuelType transmission seats pricePerDay images address location averageRating totalReviews isAvailable unavailableDates provider features licensePlate",
     )
     .populate("provider", "name avatar")
     .lean();
@@ -551,7 +596,11 @@ export const getVehicleById = asyncHandler(async (req, res) => {
 export const deleteVehicle = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const vehicle = await Vehicle.findOne({ _id: id, provider: req.user._id, isDeleted: false });
+  const vehicle = await Vehicle.findOne({
+    _id: id,
+    provider: req.user._id,
+    isDeleted: false,
+  });
   if (!vehicle) {
     throw new ApiError(404, "Vehicle not found or already deleted.");
   }
@@ -559,16 +608,20 @@ export const deleteVehicle = asyncHandler(async (req, res) => {
   // Check for active bookings
   const activeBookings = await Booking.find({
     vehicle: id,
-    status: { $in: ["Locked", "Pending", "Confirmed"] }
+    status: { $in: ["Locked", "Pending", "Confirmed"] },
   });
 
   if (activeBookings.length > 0) {
-    throw new ApiError(400, "Cannot delete this vehicle because it has active bookings. Please request cancellation for those bookings first.");
+    throw new ApiError(
+      400,
+      "Cannot delete this vehicle because it has active bookings. Please request cancellation for those bookings first.",
+    );
   }
 
   vehicle.isDeleted = true;
   await vehicle.save();
 
-  return res.status(200).json(new ApiResponse(200, null, "Vehicle successfully deleted."));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "Vehicle successfully deleted."));
 });
-
