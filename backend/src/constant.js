@@ -1,4 +1,12 @@
 export const DB_NAME = "Rental";
+
+// Business logic constants
+export const ADVANCE_PAYMENT_PERCENTAGE = 0.25;
+export const PLATFORM_FEE_PERCENTAGE = 0.05;
+export const LOCK_DURATION_MINUTES = 15;
+export const BOOKING_PAGINATION_LIMIT = 20;
+export const MESSAGE_PAGINATION_LIMIT = 50;
+
 export const minDeposit = {
   //Like [minimum, %of booking value] for security deposit
   //2-Wheeler

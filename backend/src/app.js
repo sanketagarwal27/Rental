@@ -1,14 +1,25 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
+import morgan from "morgan";
 
 //Routes Import
 import userRouter from "./routes/user.routes.js";
 import vehicleRouter from "./routes/vehicle.routes.js";
 import bookingRouter from "./routes/booking.routes.js";
 import adminRouter from "./routes/admin.routes.js";
+import messageRouter from "./routes/message.routes.js";
+import reviewRouter from "./routes/review.routes.js";
 
 const app = express();
+
+// Security headers
+app.use(helmet());
+
+// Request logging
+app.use(morgan("dev"));
+
 app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
@@ -20,6 +31,8 @@ app.use("/api/user", userRouter);
 app.use("/api/vehicle", vehicleRouter);
 app.use("/api/booking", bookingRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/message", messageRouter);
+app.use("/api/review", reviewRouter);
 
 // Global error handler — must be after all routes
 app.use((err, req, res, next) => {
@@ -40,6 +53,12 @@ app.use((err, req, res, next) => {
     } else {
       message = `Duplicate value entered for field(s): ${keys.join(", ")}. Please use another value.`;
     }
+  }
+
+  // Handle Multer file size/type errors
+  if (err.code === "LIMIT_FILE_SIZE") {
+    statusCode = 400;
+    message = "File size exceeds the 5MB limit.";
   }
 
   return res.status(statusCode).json({
