@@ -413,9 +413,9 @@ export const getUserDashboardData = asyncHandler(async (req, res) => {
     (b) => b.status === "Completed",
   );
 
-  // Net earnings = 95% host payout (after 5% platform commission)
+  // Net earnings = 95% host payout (excluding damage reimbursements/extra charges)
   const totalPayoutEarned = completedBookings.reduce(
-    (sum, b) => sum + (b.hostPayout || b.totalPrice * 0.95 || 0),
+    (sum, b) => sum + ((b.hostPayout || b.totalPrice * 0.95 || 0) - (b.extraCharge || 0)),
     0,
   );
   const totalPlatformFeeDeducted = completedBookings.reduce(

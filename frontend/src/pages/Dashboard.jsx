@@ -284,12 +284,14 @@ const RenterView = ({
                           </span>
                         </span>
                       )}
-                      <span>
-                        Due:{" "}
-                        <span className="text-zinc-300 font-semibold">
-                          {formatINR(bk.totalPrice - bk.amountPaid)}
+                      {bk.totalPrice - bk.amountPaid > 0 && (
+                        <span>
+                          Due:{" "}
+                          <span className="text-zinc-300 font-semibold">
+                            {formatINR(bk.totalPrice - bk.amountPaid)}
+                          </span>
                         </span>
-                      </span>
+                      )}
                     </div>
                   )}
 
@@ -345,9 +347,20 @@ const RenterView = ({
                         )}
                       </div>
                       {bk.extraCharge > 0 && (
-                        <div className="text-rose-400 flex items-center gap-1 font-medium">
-                          <AlertCircle className="w-3 h-3" />
-                          Extra charges deducted: {formatINR(bk.extraCharge)}
+                        <div className="text-rose-400 flex flex-col items-start gap-0.5 font-medium">
+                          <div className="flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3 shrink-0" />
+                            {bk.extraCharge <= (bk.securityDepositHeld || 0) ? (
+                              `Extra charges deducted from deposit: ${formatINR(bk.extraCharge)}`
+                            ) : (
+                              `Total extra charges: ${formatINR(bk.extraCharge)}`
+                            )}
+                          </div>
+                          {bk.extraCharge > (bk.securityDepositHeld || 0) && (
+                            <span className="ml-4 text-[10px] text-rose-400/80">
+                              (Deposit deducted + {formatINR(bk.extraCharge - (bk.securityDepositHeld || 0))} paid online)
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
@@ -843,8 +856,8 @@ const HostView = ({
                   ?.slice(0, visibleIncomingCount)
                   .map((req, i) => {
                     const payout =
-                      req.hostPayout ??
-                      Math.round((req.totalPrice || 0) * 0.95);
+                      (req.hostPayout ?? Math.round((req.totalPrice || 0) * 0.95)) -
+                      (req.extraCharge || 0);
                     return (
                       <div
                         key={i}
@@ -934,10 +947,20 @@ const HostView = ({
                               )}
                             </div>
                             {req.extraCharge > 0 && (
-                              <div className="text-rose-400 flex items-center gap-1 font-medium">
-                                <AlertCircle className="w-3 h-3" />
-                                Extra charges deducted:{" "}
-                                {formatINR(req.extraCharge)}
+                              <div className="text-rose-400 flex flex-col items-start gap-0.5 font-medium">
+                                <div className="flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3 shrink-0" />
+                                  {req.extraCharge <= (req.securityDepositHeld || 0) ? (
+                                    `Extra charges deducted from deposit: ${formatINR(req.extraCharge)}`
+                                  ) : (
+                                    `Total extra charges: ${formatINR(req.extraCharge)}`
+                                  )}
+                                </div>
+                                {req.extraCharge > (req.securityDepositHeld || 0) && (
+                                  <span className="ml-4 text-[10px] text-rose-400/80">
+                                    (Deposit deducted + {formatINR(req.extraCharge - (req.securityDepositHeld || 0))} paid online)
+                                  </span>
+                                )}
                               </div>
                             )}
                           </div>

@@ -235,8 +235,8 @@ const MyVehicles = () => {
 
   // Calculate stats
   const totalRevenue = bookings
-    .filter((b) => ["Confirmed", "Completed"].includes(b.status))
-    .reduce((sum, b) => sum + (b.hostPayout || b.totalPrice * 0.95 || 0), 0);
+    .filter((b) => ["Confirmed", "Completed", "Ongoing"].includes(b.status))
+    .reduce((sum, b) => sum + ((b.hostPayout || b.totalPrice * 0.95 || 0) - (b.extraCharge || 0)), 0);
 
   // Calculate revenue per vehicle
   const getVehicleRevenue = (vehicleId) => {
@@ -244,9 +244,9 @@ const MyVehicles = () => {
       .filter(
         (b) =>
           b.vehicle?._id === vehicleId &&
-          ["Confirmed", "Completed"].includes(b.status),
+          ["Confirmed", "Completed", "Ongoing"].includes(b.status),
       )
-      .reduce((sum, b) => sum + (b.hostPayout || b.totalPrice * 0.95 || 0), 0);
+      .reduce((sum, b) => sum + ((b.hostPayout || b.totalPrice * 0.95 || 0) - (b.extraCharge || 0)), 0);
   };
 
   // Get status color helper
