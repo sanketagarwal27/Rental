@@ -72,13 +72,13 @@ export const loginUser = asyncHandler(async (req, res) => {
   const accessTokenOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     maxAge: 1 * 24 * 60 * 60 * 1000, // 1 day
   };
   const refreshTokenOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
   };
   return res
@@ -104,7 +104,7 @@ export const logoutUser = asyncHandler(async (req, res) => {
   const options = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   };
 
   return res
@@ -139,13 +139,13 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
     const accessTokenOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 1 * 24 * 60 * 60 * 1000, // 1 day
     };
     const refreshTokenOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
     };
     const { accessToken, refreshToken } =
