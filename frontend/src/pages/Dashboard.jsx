@@ -39,6 +39,7 @@ import StatsCard from "../components/dashboard/StatsCard";
 import RenterTripsTable from "../components/dashboard/RenterTripsTable";
 import HostVehiclesTable from "../components/dashboard/HostVehiclesTable";
 import IncomingBookingsTable from "../components/dashboard/IncomingBookingsTable";
+import VehicleEarningsChart from "../components/dashboard/VehicleEarningsChart";
 
 // ─── Renter View ────────────────────────────────────────────────────────────
 const RenterView = ({
@@ -278,6 +279,11 @@ const HostView = ({
         {stats.map((s, i) => (
           <StatsCard key={i} {...s} />
         ))}
+      </div>
+
+      {/* Earnings Chart */}
+      <div className="mt-8 mb-6">
+        <VehicleEarningsChart rentals={financials.rentalBookingsList} />
       </div>
 
       {/* Content Grid */}
