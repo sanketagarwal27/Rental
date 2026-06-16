@@ -13,6 +13,24 @@ import {
 import Razorpay from "razorpay";
 import crypto from "crypto";
 
+const notifyBookingUpdate = (req, booking, actionMessage = null) => {
+  const io = req.app.get("io");
+  if (io && booking) {
+    if (booking.status === "Locked") return;
+    const payload = { bookingId: booking._id, status: booking.status, actionMessage };
+    
+    const isUnpaidCancelled = booking.status === "Cancelled" && booking.paymentStatus === "Unpaid";
+
+    if (booking.customer) {
+      io.to(booking.customer.toString()).emit("bookingUpdated", payload);
+    }
+    
+    if (booking.provider && !isUnpaidCancelled) {
+      io.to(booking.provider.toString()).emit("bookingUpdated", payload);
+    }
+  }
+};
+
 // ─── Lock Vehicle (initiates 15-min hold) ────────────────────────────────────
 export const lockVehicle = asyncHandler(async (req, res) => {
   const { vehicleId, startDate, endDate } = req.body;
@@ -120,6 +138,8 @@ export const lockVehicle = asyncHandler(async (req, res) => {
     paymentStatus: "Unpaid",
     lockedUntil,
   });
+
+  notifyBookingUpdate(req, booking);
 
   return res.status(201).json(
     new ApiResponse(
@@ -325,6 +345,8 @@ export const confirmBooking = asyncHandler(async (req, res) => {
     note: `Host net earnings ₹${booking.hostPayout} (95% of ₹${booking.totalPrice} after 5% platform fee). Platform collects 25% advance now + 75% remaining via Razorpay at pickup, then disburses full amount on trip completion.`,
   });
 
+  notifyBookingUpdate(req, booking);
+
   return res.status(200).json(
     new ApiResponse(
       200,
@@ -480,8 +502,14 @@ export const cancelBooking = asyncHandler(async (req, res) => {
   booking.status = "Cancelled";
   booking.paymentStatus = paymentStatus;
   booking.refundAmount = refundAmount;
-  booking.cancellationReason = reason || (isHost ? "Cancelled by host" : "Cancelled by customer");
+  if (booking.cancellationRequestByHost?.isRequested) {
+    booking.cancellationReason = `Host requested cancellation: ${booking.cancellationRequestByHost.reason}`;
+  } else {
+    booking.cancellationReason = reason || (isHost ? "Cancelled by host" : "Cancelled by customer");
+  }
   await booking.save();
+
+  notifyBookingUpdate(req, booking);
 
   const refundMsg =
     refundAmount > 0
@@ -567,6 +595,8 @@ export const requestCancellation = asyncHandler(async (req, res) => {
 
   await booking.save();
 
+  notifyBookingUpdate(req, booking, "Cancellation Requested");
+
   return res.status(200).json(
     new ApiResponse(
       200,
@@ -596,6 +626,8 @@ export const rejectCancellation = asyncHandler(async (req, res) => {
 
   booking.cancellationRequestByHost = undefined;
   await booking.save();
+
+  notifyBookingUpdate(req, booking, "Cancellation Rejected");
 
   return res.status(200).json(
     new ApiResponse(
@@ -722,6 +754,8 @@ export const markPickedUp = asyncHandler(async (req, res) => {
     note: `Remaining 75% of ₹${remainingAmount} paid via Razorpay at vehicle pickup. Platform now holds full trip amount and will disburse ₹${booking.hostPayout} to host on trip completion.`,
   });
 
+  notifyBookingUpdate(req, booking);
+
   return res.status(200).json(
     new ApiResponse(
       200,
@@ -795,6 +829,8 @@ export const markReturned = asyncHandler(async (req, res) => {
       { status: "Succeeded", note: `Host payout released on trip completion` }
     );
 
+    notifyBookingUpdate(req, booking);
+
     return res.status(200).json(
       new ApiResponse(
         200,
@@ -818,6 +854,8 @@ export const markReturned = asyncHandler(async (req, res) => {
       requestedAt: new Date()
     };
     await booking.save();
+
+    notifyBookingUpdate(req, booking, "Return Requested (with damages)");
 
     return res.status(200).json(
       new ApiResponse(
@@ -915,6 +953,8 @@ export const acceptReturn = asyncHandler(async (req, res) => {
   );
 
   await Promise.all(transactions);
+
+  notifyBookingUpdate(req, booking);
 
   return res.status(200).json(
     new ApiResponse(
@@ -1062,6 +1102,8 @@ export const payAndAcceptReturn = asyncHandler(async (req, res) => {
       note: `Host payout released on trip completion (includes ₹${totalExtra} extra charges)` 
     }
   );
+
+  notifyBookingUpdate(req, booking);
 
   return res.status(200).json(
     new ApiResponse(

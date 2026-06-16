@@ -381,7 +381,12 @@ export const getUserDashboardData = asyncHandler(async (req, res) => {
     })
     .populate({
       path: "myTrips",
-      match: { status: { $ne: "Locked" } },
+      match: { 
+        $nor: [
+          { status: "Locked" },
+          { status: "Cancelled", paymentStatus: "Unpaid" }
+        ]
+      },
       options: { sort: { createdAt: -1 } },
       populate: {
         path: "vehicle",
@@ -389,7 +394,12 @@ export const getUserDashboardData = asyncHandler(async (req, res) => {
     })
     .populate({
       path: "myEarnings",
-      match: { status: { $nin: ["Locked", "Cancelled"] } },
+      match: { 
+        $nor: [
+          { status: "Locked" },
+          { status: "Cancelled", paymentStatus: "Unpaid" }
+        ]
+      },
       options: { sort: { createdAt: -1 } },
       populate: [
         {

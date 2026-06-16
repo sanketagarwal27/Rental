@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
-import { io } from "socket.io-client";
 import axiosInstance from "../api/axios.js";
 import { Send, X, MessageSquare, Menu } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useSocket } from "../context/SocketContext";
 
 const SupportChat = ({ otherUserId, isWidget = true }) => {
   const { user } = useAuth();
+  const { socket } = useSocket();
   const [isOpen, setIsOpen] = useState(!isWidget);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [showFaqs, setShowFaqs] = useState(false);
   const messagesEndRef = useRef(null);
-  const socketRef = useRef(null);
 
   const faqs = user?.role === "Admin" ? [
     "Please check your Dashboard for the pickup location.",
@@ -33,28 +33,9 @@ const SupportChat = ({ otherUserId, isWidget = true }) => {
   const [adminId, setAdminId] = useState(otherUserId);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !socket) return;
 
-    // Connect to socket with auth token
-    const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:4000";
-    const socket = io(backendUrl.replace("/api", ""), {
-      withCredentials: true,
-      auth: {
-        token: document.cookie
-          .split("; ")
-          .find((c) => c.startsWith("accessToken="))
-          ?.split("=")[1],
-      },
-    });
-    socketRef.current = socket;
-
-    // Join room
-    socket.emit("joinRoom", user._id);
-    if (user.role === "Admin") {
-      socket.emit("joinRoom", "admin_room");
-    }
-
-    socket.on("receiveMessage", (message) => {
+    const handleMessage = (message) => {
       setMessages((prev) => {
         // Prevent duplicate messages
         if (prev.some((m) => m._id === message._id)) return prev;
@@ -73,12 +54,14 @@ const SupportChat = ({ otherUserId, isWidget = true }) => {
           return [...prev, message];
         }
       });
-    });
+    };
+
+    socket.on("receiveMessage", handleMessage);
 
     return () => {
-      socket.disconnect();
+      socket.off("receiveMessage", handleMessage);
     };
-  }, [user, otherUserId]);
+  }, [user, otherUserId, socket]);
 
   useEffect(() => {
     // Fetch initial messages

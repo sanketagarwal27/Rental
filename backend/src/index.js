@@ -18,6 +18,8 @@ const io = new Server(server, {
   },
 });
 
+app.set("io", io);
+
 // Socket.IO authentication middleware
 io.use(async (socket, next) => {
   try {

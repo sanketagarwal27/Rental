@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import NearbyVehicles from "../components/NearbyVehicles";
 import { useAuth } from "../context/AuthContext";
+import { useSocket } from "../context/SocketContext";
 import { getUserDashboardData } from "../api/profile";
 import { cancelBooking } from "../api/booking";
 import {
@@ -326,6 +327,7 @@ const HostView = ({
 // ─── Main Dashboard ──────────────────────────────────────────────────────────
 const Dashboard = () => {
   const { user } = useAuth();
+  const { socket } = useSocket();
   const [activeMode, setActiveMode] = useState("renter");
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -719,6 +721,20 @@ const Dashboard = () => {
   useEffect(() => {
     fetchDashboard();
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleBookingUpdate = async (data) => {
+      const { toast } = await import("sonner");
+      const msg = data.actionMessage || `Status changed to ${data.status.replace(/_/g, " ")}`;
+      toast.success(`Booking update: ${msg}`);
+      fetchDashboard();
+    };
+    socket.on("bookingUpdated", handleBookingUpdate);
+    return () => {
+      socket.off("bookingUpdated", handleBookingUpdate);
+    };
+  }, [socket]);
 
   return (
     <div className="flex min-h-screen bg-transparent text-zinc-100 font-sans selection:bg-blue-600/30">
