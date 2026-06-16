@@ -20,7 +20,8 @@ app.use(helmet());
 // Request logging
 app.use(morgan("dev"));
 
-app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
+const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, "") : "";
+app.use(cors({ origin: [frontendUrl, frontendUrl + "/"], credentials: true }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use(express.static("public"));

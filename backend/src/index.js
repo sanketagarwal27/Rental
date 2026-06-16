@@ -10,9 +10,10 @@ import { User } from "./models/user.model.js";
 
 const server = http.createServer(app);
 
+const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, "") : "";
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL,
+    origin: [frontendUrl, frontendUrl + "/"],
     credentials: true,
   },
 });
