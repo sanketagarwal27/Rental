@@ -14,13 +14,20 @@ import reviewRouter from "./routes/review.routes.js";
 
 const app = express();
 
+// Health Check
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 // Security headers
 app.use(helmet());
 
 // Request logging
 app.use(morgan("dev"));
 
-const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, "") : "";
+const frontendUrl = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.replace(/\/$/, "")
+  : "";
 app.use(cors({ origin: [frontendUrl, frontendUrl + "/"], credentials: true }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
@@ -46,7 +53,8 @@ app.use((err, req, res, next) => {
     const keyPattern = err.keyPattern || {};
     const keys = Object.keys(keyPattern);
     if (keys.includes("licensePlate") && keys.includes("issuingState")) {
-      message = "A vehicle with this license plate and issuing state already exists.";
+      message =
+        "A vehicle with this license plate and issuing state already exists.";
     } else if (keys.includes("vinOrChassis")) {
       message = "A vehicle with this VIN/Chassis number already exists.";
     } else if (keys.includes("email")) {
