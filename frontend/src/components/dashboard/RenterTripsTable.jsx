@@ -1,6 +1,13 @@
 import React, { useState } from "react";
 import { formatINR, statusStyle } from "../../utils/dashboardUtils";
-import { MapPin, CheckCircle2, ShieldCheck, AlertCircle, PackageCheck, Car } from "lucide-react";
+import {
+  MapPin,
+  CheckCircle2,
+  ShieldCheck,
+  AlertCircle,
+  PackageCheck,
+  Car,
+} from "lucide-react";
 
 const RenterTripsTable = ({
   vehiclesRented,
@@ -14,7 +21,7 @@ const RenterTripsTable = ({
   onReturnAction,
   returnActionId,
 }) => {
-  const [tripFilter, setTripFilter] = useState("Ongoing");
+  const [tripFilter, setTripFilter] = useState("All Trips");
   const [visibleTripsCount, setVisibleTripsCount] = useState(5);
 
   const getTripState = (bk) => {
@@ -170,7 +177,8 @@ const RenterTripsTable = ({
                   {bk.securityDepositHeld > 0 && (
                     <div className="text-amber-400 flex items-center gap-1">
                       <ShieldCheck className="w-3 h-3" />
-                      Security deposit hold of {formatINR(bk.securityDepositHeld)} released
+                      Security deposit hold of{" "}
+                      {formatINR(bk.securityDepositHeld)} released
                     </div>
                   )}
                   {bk.cancellationReason && (
@@ -203,15 +211,17 @@ const RenterTripsTable = ({
                     <div className="text-rose-400 flex flex-col items-start gap-0.5 font-medium">
                       <div className="flex items-center gap-1">
                         <AlertCircle className="w-3 h-3 shrink-0" />
-                        {bk.extraCharge <= (bk.securityDepositHeld || 0) ? (
-                          `Extra charges deducted from deposit: ${formatINR(bk.extraCharge)}`
-                        ) : (
-                          `Total extra charges: ${formatINR(bk.extraCharge)}`
-                        )}
+                        {bk.extraCharge <= (bk.securityDepositHeld || 0)
+                          ? `Extra charges deducted from deposit: ${formatINR(bk.extraCharge)}`
+                          : `Total extra charges: ${formatINR(bk.extraCharge)}`}
                       </div>
                       {bk.extraCharge > (bk.securityDepositHeld || 0) && (
                         <span className="ml-4 text-[10px] text-rose-400/80">
-                          (Deposit deducted + {formatINR(bk.extraCharge - (bk.securityDepositHeld || 0))} paid online)
+                          (Deposit deducted +{" "}
+                          {formatINR(
+                            bk.extraCharge - (bk.securityDepositHeld || 0),
+                          )}{" "}
+                          paid online)
                         </span>
                       )}
                     </div>
@@ -223,7 +233,9 @@ const RenterTripsTable = ({
               {bk.status === "Confirmed" && (
                 <div className="ml-14 flex flex-col items-start gap-2">
                   <button
-                    onClick={() => onPickedUp(bk._id, bk.totalPrice - bk.amountPaid)}
+                    onClick={() =>
+                      onPickedUp(bk._id, bk.totalPrice - bk.amountPaid)
+                    }
                     disabled={pickingUpId === bk._id}
                     className="flex items-center gap-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg transition shadow-md shadow-emerald-600/20 cursor-pointer disabled:opacity-50"
                   >
@@ -253,17 +265,25 @@ const RenterTripsTable = ({
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => onCancelBooking(bk._id, "renter")}
-                          disabled={cancellingId === bk._id || rejectingId === bk._id}
+                          disabled={
+                            cancellingId === bk._id || rejectingId === bk._id
+                          }
                           className="text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded-lg transition shadow-md shadow-rose-600/20 cursor-pointer disabled:opacity-50 flex-1"
                         >
-                          {cancellingId === bk._id ? "Processing…" : "Accept (100% Refund)"}
+                          {cancellingId === bk._id
+                            ? "Processing…"
+                            : "Accept (100% Refund)"}
                         </button>
                         <button
                           onClick={() => onRejectCancellation(bk._id)}
-                          disabled={cancellingId === bk._id || rejectingId === bk._id}
+                          disabled={
+                            cancellingId === bk._id || rejectingId === bk._id
+                          }
                           className="text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg transition border border-zinc-700 cursor-pointer disabled:opacity-50 flex-1"
                         >
-                          {rejectingId === bk._id ? "Rejecting…" : "Reject Cancellation"}
+                          {rejectingId === bk._id
+                            ? "Rejecting…"
+                            : "Reject Cancellation"}
                         </button>
                       </div>
                     </div>
@@ -273,7 +293,9 @@ const RenterTripsTable = ({
                       disabled={cancellingId === bk._id}
                       className="text-xs text-rose-400 hover:text-rose-300 border border-rose-500/20 hover:border-rose-500/40 bg-rose-500/5 hover:bg-rose-500/10 px-3 py-1.5 rounded-lg transition cursor-pointer disabled:opacity-50"
                     >
-                      {cancellingId === bk._id ? "Cancelling…" : "Cancel Booking"}
+                      {cancellingId === bk._id
+                        ? "Cancelling…"
+                        : "Cancel Booking"}
                     </button>
                   )}
                 </div>
@@ -308,18 +330,23 @@ const RenterTripsTable = ({
                               {bk.returnRequest.damages.map((d, idx) => (
                                 <li key={idx} className="flex justify-between">
                                   <span>{d.type}</span>
-                                  <span className="font-mono">{formatINR(d.amount)}</span>
+                                  <span className="font-mono">
+                                    {formatINR(d.amount)}
+                                  </span>
                                 </li>
                               ))}
                             </ul>
                             <div className="mt-2 pt-1 border-t border-amber-500/20 flex justify-between font-bold text-amber-300">
                               <span>Total Deduction:</span>
-                              <span>{formatINR(bk.returnRequest.totalExtraCharge)}</span>
+                              <span>
+                                {formatINR(bk.returnRequest.totalExtraCharge)}
+                              </span>
                             </div>
                           </div>
                         ) : (
                           <p className="text-[11px] text-amber-400/80 mt-1">
-                            No extra charges reported. Full security deposit will be refunded.
+                            No extra charges reported. Full security deposit
+                            will be refunded.
                           </p>
                         )}
                       </div>
@@ -337,7 +364,9 @@ const RenterTripsTable = ({
                         className="text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg transition shadow-md shadow-amber-600/20 cursor-pointer disabled:opacity-50 w-full flex items-center justify-center gap-2"
                       >
                         <CheckCircle2 className="w-4 h-4" />
-                        {returnActionId === bk._id ? "Processing…" : "Accept & Complete Trip"}
+                        {returnActionId === bk._id
+                          ? "Processing…"
+                          : "Accept & Complete Trip"}
                       </button>
                     </div>
                   </div>
@@ -348,7 +377,8 @@ const RenterTripsTable = ({
         </div>
       )}
 
-      {(filteredSortedTrips.length > visibleTripsCount || visibleTripsCount > 5) && (
+      {(filteredSortedTrips.length > visibleTripsCount ||
+        visibleTripsCount > 5) && (
         <div className="flex justify-center pt-2 gap-4">
           {filteredSortedTrips.length > visibleTripsCount && (
             <button
