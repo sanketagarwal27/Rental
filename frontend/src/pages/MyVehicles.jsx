@@ -731,12 +731,7 @@ const MyVehicles = () => {
                             <div className="flex items-center gap-3">
                               <div className={`w-2 h-2 rounded-full ${isBooked ? "bg-amber-500" : "bg-rose-500"}`} />
                               <span className="text-sm font-medium text-zinc-300">
-                                {new Date(date).toLocaleDateString(undefined, {
-                                  weekday: "short",
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                })}
+                                {new Date(date).toLocaleDateString("en-GB")}
                               </span>
                               {isBooked && (
                                 <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 uppercase tracking-wider font-bold">

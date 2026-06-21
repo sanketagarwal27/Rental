@@ -135,7 +135,10 @@ export const uploadVehicle = asyncHandler(async (req, res) => {
   } = req.body;
 
   if (!req.user.isVerifiedEmail) {
-    throw new ApiError(410, "Please verify your email before proceeding.");
+    throw new ApiError(
+      410,
+      "Please verify your email in profile before proceeding.",
+    );
   }
 
   if (
@@ -326,7 +329,9 @@ export const updateAvailability = asyncHandler(async (req, res) => {
     // Guard: ensure no active booking dates are removed
     const confirmedBookings = await Booking.find({
       vehicle: id,
-      status: { $in: ["Locked", "Pending", "Confirmed", "Ongoing", "Return_Requested"] },
+      status: {
+        $in: ["Locked", "Pending", "Confirmed", "Ongoing", "Return_Requested"],
+      },
     });
 
     const activeBookedTimestamps = new Set();

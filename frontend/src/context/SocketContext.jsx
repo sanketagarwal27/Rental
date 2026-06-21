@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { useAuth } from "./AuthContext";
+import axiosInstance from "../api/axios.js";
 
 const SocketContext = createContext();
 
@@ -11,6 +12,7 @@ export const useSocket = () => {
 export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
   const [socket, setSocket] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     if (!user) {
@@ -41,14 +43,32 @@ export const SocketProvider = ({ children }) => {
       socketInstance.emit("joinRoom", "admin_room");
     }
 
+    // Fetch initial unread count
+    const fetchUnreadCount = async () => {
+      try {
+        const res = await axiosInstance.get("/message/unread-count");
+        if (res.data.success) {
+          setUnreadCount(res.data.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch unread count", err);
+      }
+    };
+    fetchUnreadCount();
+
+    socketInstance.on("receiveMessage", () => {
+      fetchUnreadCount();
+    });
+
     return () => {
+      socketInstance.off("receiveMessage");
       socketInstance.disconnect();
       setSocket(null);
     };
   }, [user]);
 
   return (
-    <SocketContext.Provider value={{ socket }}>
+    <SocketContext.Provider value={{ socket, unreadCount, setUnreadCount }}>
       {children}
     </SocketContext.Provider>
   );

@@ -19,15 +19,82 @@ const verifyOtp = async (user, otp) => {
 export const getDashboardStats = asyncHandler(async (req, res) => {
   const totalUsers = await User.countDocuments();
   const totalVehicles = await Vehicle.countDocuments();
-  const totalBookings = await Booking.countDocuments();
+  const allBookings = await Booking.find()
+    .populate("customer", "name")
+    .populate("provider", "name")
+    .sort({ updatedAt: -1 });
+
+  let totalBookingsCount = allBookings.length;
+  let completedBookingsCount = 0;
+  let cancelledByAdmin = 0;
+  let cancelledByHost = 0;
+  let cancelledByCustomer = 0;
+  const recentCancellations = [];
+
+  // Filter out bookings that were cancelled before payment was ever made
+  const validBookings = allBookings.filter(
+    (b) => !(b.status === "Cancelled" && b.amountPaid === 0)
+  );
+
+  totalBookingsCount = validBookings.length;
+
+  validBookings.forEach((b) => {
+    if (b.status === "Completed") {
+      completedBookingsCount++;
+    } else if (b.status === "Cancelled") {
+      const reason = b.cancellationReason || "";
+      let cancelledByRole = "Customer"; // Default
+      let cancelledByName = b.customer?.name || "Unknown";
+
+      if (reason.toLowerCase().includes("cancelled by admin")) {
+        cancelledByRole = "Admin";
+        cancelledByName = "Admin";
+        cancelledByAdmin++;
+      } else if (
+        reason.toLowerCase().includes("host requested cancellation") ||
+        reason.toLowerCase().includes("cancelled by host")
+      ) {
+        cancelledByRole = "Host";
+        cancelledByName = b.provider?.name || "Unknown Host";
+        cancelledByHost++;
+      } else if (reason.toLowerCase().includes("cancelled by customer")) {
+        cancelledByRole = "Customer";
+        cancelledByName = b.customer?.name || "Unknown Customer";
+        cancelledByCustomer++;
+      } else {
+        // Fallback for older cancellations without specific string
+        cancelledByRole = "Unknown/Customer";
+        cancelledByCustomer++;
+      }
+
+      // We push up to 10 recent cancellations
+      if (recentCancellations.length < 10) {
+        recentCancellations.push({
+          bookingId: b._id,
+          cancelledBy: cancelledByRole,
+          cancelledByName,
+          reason,
+          date: b.updatedAt,
+        });
+      }
+    }
+  });
 
   res.status(200).json({
     success: true,
     data: {
       totalUsers,
       totalVehicles,
-      totalBookings
-    }
+      totalBookings: totalBookingsCount,
+      bookingStats: {
+        completed: completedBookingsCount,
+        cancelledTotal: cancelledByAdmin + cancelledByHost + cancelledByCustomer,
+        cancelledByAdmin,
+        cancelledByHost,
+        cancelledByCustomer,
+      },
+      recentCancellations,
+    },
   });
 });
 
@@ -218,6 +285,9 @@ export const getBookingsPaginated = asyncHandler(async (req, res) => {
     }
   }
 
+  // Do not include bookings that were cancelled before payment (amountPaid = 0)
+  query.$nor = [{ status: "Cancelled", amountPaid: 0 }];
+
   const bookings = await Booking.find(query)
     .populate("customer", "name email avatar phone")
     .populate("provider", "name email avatar phone")
@@ -278,4 +348,15 @@ export const adminCancelBooking = asyncHandler(async (req, res) => {
   await booking.save({ validateBeforeSave: false });
 
   res.status(200).json({ success: true, message: "Booking forcefully cancelled", data: booking });
+});
+
+export const getBookingById = asyncHandler(async (req, res) => {
+  const booking = await Booking.findById(req.params.id)
+    .populate("customer", "name email avatar phone")
+    .populate("provider", "name email avatar phone")
+    .populate("vehicle", "brand model year type images licensePlate");
+
+  if (!booking) throw new ApiError(404, "Booking not found");
+
+  res.status(200).json({ success: true, data: booking });
 });

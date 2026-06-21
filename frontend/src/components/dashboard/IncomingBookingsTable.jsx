@@ -42,8 +42,8 @@ const IncomingBookingsTable = ({
                         {req.vehicle?.brand} {req.vehicle?.model}
                       </p>
                       <p className="text-[10px] text-zinc-600 mt-0.5">
-                        {new Date(req.startDate).toLocaleDateString()} –{" "}
-                        {new Date(req.endDate).toLocaleDateString()}
+                        {new Date(req.startDate).toLocaleDateString('en-GB')} –{" "}
+                        {new Date(req.endDate).toLocaleDateString('en-GB')}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1.5 shrink-0 text-right">

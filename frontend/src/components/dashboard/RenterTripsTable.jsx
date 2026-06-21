@@ -43,7 +43,7 @@ const RenterTripsTable = ({
       if (tripFilter === "Cancelled") return getTripState(bk) === "Cancelled";
       return true;
     })
-    .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    .sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
 
   const handleCardClick = (e, bk) => {
     if (e.target.closest("button")) return;
@@ -115,8 +115,8 @@ const RenterTripsTable = ({
                         </div>
                       )}
                     <p className="text-xs text-zinc-600 mt-0.5">
-                      {new Date(bk.startDate).toLocaleDateString()} →{" "}
-                      {new Date(bk.endDate).toLocaleDateString()}
+                      {new Date(bk.startDate).toLocaleDateString('en-GB')} →{" "}
+                      {new Date(bk.endDate).toLocaleDateString('en-GB')}
                     </p>
                   </div>
                 </div>
@@ -232,18 +232,24 @@ const RenterTripsTable = ({
               {/* Action buttons — Confirmed trips */}
               {bk.status === "Confirmed" && (
                 <div className="ml-14 flex flex-col items-start gap-2">
-                  <button
-                    onClick={() =>
-                      onPickedUp(bk._id, bk.totalPrice - bk.amountPaid)
-                    }
-                    disabled={pickingUpId === bk._id}
-                    className="flex items-center gap-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg transition shadow-md shadow-emerald-600/20 cursor-pointer disabled:opacity-50"
-                  >
-                    <PackageCheck className="w-3.5 h-3.5" />
-                    {pickingUpId === bk._id
-                      ? "Processing…"
-                      : `Pay ${formatINR(bk.totalPrice - bk.amountPaid)} and Pick Up`}
-                  </button>
+                  {new Date() >= new Date(new Date(bk.startDate).setHours(0, 0, 0, 0)) ? (
+                    <button
+                      onClick={() =>
+                        onPickedUp(bk._id, bk.totalPrice - bk.amountPaid)
+                      }
+                      disabled={pickingUpId === bk._id}
+                      className="flex items-center gap-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg transition shadow-md shadow-emerald-600/20 cursor-pointer disabled:opacity-50"
+                    >
+                      <PackageCheck className="w-3.5 h-3.5" />
+                      {pickingUpId === bk._id
+                        ? "Processing…"
+                        : `Pay ${formatINR(bk.totalPrice - bk.amountPaid)} and Pick Up`}
+                    </button>
+                  ) : (
+                    <div className="text-xs font-medium text-amber-500 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20">
+                      Pickup unlocks at midnight on {new Date(bk.startDate).toLocaleDateString('en-GB')}
+                    </div>
+                  )}
 
                   {/* Cancellation request from host */}
                   {bk.cancellationRequestByHost?.isRequested ? (

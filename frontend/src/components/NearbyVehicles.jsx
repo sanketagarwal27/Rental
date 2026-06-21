@@ -40,7 +40,7 @@ const VehicleCard = ({ vehicle }) => {
     }
     if (!user.isVerifiedEmail) {
       toast.error(
-        "Please verify your email before booking.",
+        "Please go to profile and verify your email before booking.",
         { duration: 5000 },
       );
       return;

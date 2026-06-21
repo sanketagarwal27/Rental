@@ -66,8 +66,6 @@ export const cleanExpiredLocks = async () => {
       },
     });
 
-    booking.status = "Cancelled";
-    booking.cancellationReason = "Lock window expired";
-    await booking.save({ validateBeforeSave: false });
+    await booking.deleteOne();
   }
 };

@@ -102,6 +102,13 @@ export const getConversations = asyncHandler(async (req, res) => {
     .populate("receiver", "name email avatar")
     .sort({ createdAt: -1 });
 
+  const unreadCounts = await Message.aggregate([
+    { $match: { receiver: adminId, read: false } },
+    { $group: { _id: "$sender", count: { $sum: 1 } } }
+  ]);
+  const unreadMap = {};
+  unreadCounts.forEach((u) => { unreadMap[u._id.toString()] = u.count; });
+
   const conversations = [];
   const seenUsers = new Set();
 
@@ -118,9 +125,35 @@ export const getConversations = asyncHandler(async (req, res) => {
       conversations.push({
         user: otherUser,
         lastMessage: msg,
+        unreadCount: unreadMap[otherUserId] || 0,
       });
     }
   }
 
   return res.status(200).json({ success: true, data: conversations });
+});
+
+// Get total unread messages count for the current user
+export const getUnreadCount = asyncHandler(async (req, res) => {
+  const currentUserId = req.user._id;
+  const count = await Message.countDocuments({ receiver: currentUserId, read: false });
+  return res.status(200).json({ success: true, data: count });
+});
+
+// Mark messages from a specific user as read
+export const markAsRead = asyncHandler(async (req, res) => {
+  const currentUserId = req.user._id;
+  let { otherUserId } = req.params;
+
+  if (otherUserId === "support") {
+    const admin = await User.findOne({ role: "Admin" });
+    if (admin) otherUserId = admin._id.toString();
+  }
+
+  await Message.updateMany(
+    { sender: otherUserId, receiver: currentUserId, read: false },
+    { $set: { read: true } }
+  );
+
+  return res.status(200).json({ success: true, message: "Messages marked as read" });
 });

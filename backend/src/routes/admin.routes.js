@@ -11,7 +11,8 @@ import {
   rejectVehicle,
   toggleVehicleBlock,
   getBookingsPaginated,
-  adminCancelBooking
+  adminCancelBooking,
+  getBookingById
 } from "../controllers/admin.controller.js";
 
 const router = Router();
@@ -36,6 +37,7 @@ router.route("/vehicles/:id/block").patch(toggleVehicleBlock);
 
 // Booking Management
 router.route("/bookings").get(getBookingsPaginated);
+router.route("/bookings/:id").get(getBookingById);
 router.route("/bookings/:id/cancel").patch(adminCancelBooking);
 
 export default router;

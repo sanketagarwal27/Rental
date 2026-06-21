@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useSocket } from "../context/SocketContext";
 import { toast } from "sonner";
 import {
   LayoutDashboard,
@@ -17,6 +18,7 @@ import {
 
 const Sidebar = () => {
   const { user, logout } = useAuth();
+  const { unreadCount } = useSocket();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -142,7 +144,12 @@ const Sidebar = () => {
                         }`}
                       />
                       <span>{item.label}</span>
-                      {isActive && (
+                      {item.label === "Messages" && unreadCount > 0 && (
+                        <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                      {isActive && (!unreadCount || item.label !== "Messages") && (
                         <span className="absolute right-3 w-1.5 h-1.5 rounded-full bg-blue-500 shadow-md shadow-blue-500/50" />
                       )}
                     </>

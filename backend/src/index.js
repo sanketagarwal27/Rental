@@ -7,10 +7,14 @@ import http from "http";
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import { User } from "./models/user.model.js";
+import { cleanupDates } from "./cron/cleanupDates.js";
 
 const server = http.createServer(app);
 
-const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, "") : "";
+const frontendUrl = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.replace(/\/$/, "")
+  : "";
+cleanupDates();
 const io = new Server(server, {
   cors: {
     origin: [frontendUrl, frontendUrl + "/"],

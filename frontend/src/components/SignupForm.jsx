@@ -1,21 +1,29 @@
 import { useState } from "react";
 import { register } from "../api/auth";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const SignupForm = ({ onClose, onLogin }) => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { setUser } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
       const payload = { name, email, password };
-      await register(payload);
-      toast.success("Account created! Please log in.");
-      onClose();
+      const res = await register(payload);
+      // Since the backend now logs in the user directly, we can set the user state
+      if (res && res.data) {
+        setUser(res.data);
+      }
+      onClose(); // Close the signup modal
+      navigate("/dashboard");
     } catch (err) {
       const message =
         err.response?.data?.message || "Sign up failed. Please try again.";

@@ -34,7 +34,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import SupportChat from "../components/SupportChat";
 
-import { formatINR } from "../utils/dashboardUtils";
+import { formatINR, statusStyle } from "../utils/dashboardUtils";
 import StatsCard from "../components/dashboard/StatsCard";
 import RenterTripsTable from "../components/dashboard/RenterTripsTable";
 import HostVehiclesTable from "../components/dashboard/HostVehiclesTable";
@@ -334,7 +334,13 @@ const HostView = ({
 const Dashboard = () => {
   const { user } = useAuth();
   const { socket } = useSocket();
-  const [activeMode, setActiveMode] = useState("renter");
+  const [activeMode, setActiveMode] = useState(
+    () => localStorage.getItem("dashboardActiveMode") || "renter"
+  );
+
+  useEffect(() => {
+    localStorage.setItem("dashboardActiveMode", activeMode);
+  }, [activeMode]);
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState(null);
@@ -675,15 +681,6 @@ const Dashboard = () => {
       (sum, d) => sum + (Number(d.amount) || 0),
       0,
     );
-    const maxAllowedCharge = depositHeld + 2 * pricePerDay;
-
-    if (totalExtraCharge > maxAllowedCharge) {
-      const { toast } = await import("sonner");
-      toast.error(
-        `Extra charges cannot exceed maximum allowed limit of ₹${maxAllowedCharge}.`,
-      );
-      return;
-    }
 
     try {
       setReturningId(bookingId);
@@ -732,7 +729,9 @@ const Dashboard = () => {
     if (!socket) return;
     const handleBookingUpdate = async (data) => {
       const { toast } = await import("sonner");
-      const msg = data.actionMessage || `Status changed to ${data.status.replace(/_/g, " ")}`;
+      const msg =
+        data.actionMessage ||
+        `Status changed to ${data.status.replace(/_/g, " ")}`;
       toast.success(`Booking update: ${msg}`);
       fetchDashboard();
     };
@@ -1236,14 +1235,6 @@ const Dashboard = () => {
                         )}
                       </span>
                     </p>
-                    <p className="text-[11px] text-zinc-400 flex justify-between">
-                      <span>Maximum Allowed:</span>
-                      <span className="text-zinc-300 font-semibold">
-                        {formatINR(
-                          returnModal.depositHeld + 2 * returnModal.pricePerDay,
-                        )}
-                      </span>
-                    </p>
                   </div>
                 </div>
               )}
@@ -1389,13 +1380,7 @@ const Dashboard = () => {
                   <p className="text-zinc-500 mb-0.5">Trip Starts</p>
                   <p className="font-semibold text-zinc-200">
                     {new Date(selectedBooking.startDate).toLocaleDateString(
-                      "en-IN",
-                      {
-                        weekday: "short",
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      },
+                      "en-GB"
                     )}
                   </p>
                 </div>
@@ -1403,13 +1388,7 @@ const Dashboard = () => {
                   <p className="text-zinc-500 mb-0.5">Trip Ends</p>
                   <p className="font-semibold text-zinc-200">
                     {new Date(selectedBooking.endDate).toLocaleDateString(
-                      "en-IN",
-                      {
-                        weekday: "short",
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      },
+                      "en-GB"
                     )}
                   </p>
                 </div>
@@ -1426,7 +1405,7 @@ const Dashboard = () => {
                   <p className="text-zinc-450 font-mono text-[10px]">
                     {new Date(
                       selectedBooking.createdAt || Date.now(),
-                    ).toLocaleDateString()}
+                    ).toLocaleDateString("en-GB")}
                   </p>
                 </div>
               </div>

@@ -55,10 +55,13 @@ const VehicleCard = ({
       toast.error("Please login to proceed with booking");
       return;
     }
-    if (!user.isVerifiedEmail || !user.isVerifiedPhone) {
-      toast.error("Please verify your email and phone before booking.", {
-        duration: 5000,
-      });
+    if (!user.isVerifiedEmail) {
+      toast.error(
+        "Please go to profile and verify your email before booking.",
+        {
+          duration: 5000,
+        },
+      );
       return;
     }
 
@@ -230,10 +233,7 @@ const VehicleCard = ({
             {relevantBlockedDates
               .slice(0, 3)
               .map((d) =>
-                new Date(d).toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                }),
+                new Date(d).toLocaleDateString("en-GB")
               )
               .join(", ")}
             {relevantBlockedDates.length > 3 &&
@@ -304,7 +304,6 @@ const geocodeLocation = async (locationText) => {
     display: data[0].display_name,
   };
 };
-
 
 // ── Main SearchResults Page ───────────────────────────────────────────────────
 const SearchResults = () => {
@@ -950,8 +949,8 @@ const SearchResults = () => {
                       </h2>
                       {startDate && endDate && (
                         <p className="text-xs text-zinc-500 mt-0.5">
-                          Available: {new Date(startDate).toLocaleDateString()}{" "}
-                          to {new Date(endDate).toLocaleDateString()}
+                          Available: {new Date(startDate).toLocaleDateString("en-GB")}{" "}
+                          to {new Date(endDate).toLocaleDateString("en-GB")}
                         </p>
                       )}
                     </div>
@@ -1107,7 +1106,7 @@ const SearchResults = () => {
                           {rev.reviewer?.name || "Anonymous"}
                         </div>
                         <div className="text-[10px] text-zinc-500">
-                          {new Date(rev.createdAt).toLocaleDateString()}
+                          {new Date(rev.createdAt).toLocaleDateString("en-GB")}
                         </div>
                       </div>
                       <div className="flex items-center gap-1 mt-1">

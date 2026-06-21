@@ -51,9 +51,29 @@ export const registerUser = asyncHandler(async (req, res) => {
   );
   if (!createdUser)
     throw new ApiError(500, "Something went wrong while registering the user");
+
+  const { refreshToken, accessToken } = await generateAccessAndRefreshTokens(
+    user._id,
+  );
+
+  const accessTokenOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: 1 * 24 * 60 * 60 * 1000, // 1 day
+  };
+  const refreshTokenOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
+  };
+
   return res
     .status(201)
-    .json(new ApiResponse(201, createdUser, "User registered successfully!"));
+    .cookie("accessToken", accessToken, accessTokenOptions)
+    .cookie("refreshToken", refreshToken, refreshTokenOptions)
+    .json(new ApiResponse(201, createdUser, "User registered and logged in successfully!"));
 });
 
 export const loginUser = asyncHandler(async (req, res) => {
@@ -321,26 +341,17 @@ export const sendPhoneOtp = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Phone number is already verified");
   }
 
-  // Generate a random 6-digit OTP
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  user.phoneOtp = otp;
-  user.phoneOtpExpires = Date.now() + 5 * 60 * 1000; // 5 mins validity
+  // Auto-verify phone number directly
+  user.isVerifiedPhone = true;
   await user.save({ validateBeforeSave: false });
-
-  // Dev-mode action: Log OTP directly to the console
-  console.log("=================================================");
-  console.log(
-    `[DEV MODE] SMS OTP for User ${user.name} (${user.phone}): ${otp}`,
-  );
-  console.log("=================================================");
 
   res
     .status(200)
     .json(
       new ApiResponse(
         200,
-        {},
-        "OTP sent successfully! (Logged to console in dev)",
+        user,
+        "Phone number auto-verified successfully!",
       ),
     );
 });

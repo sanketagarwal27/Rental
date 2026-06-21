@@ -87,7 +87,7 @@ const UserSchema = new Schema(
     },
     isVerifiedPhone: {
       type: Boolean,
-      default: false,
+      default: true,
     },
     refreshToken: {
       type: String,

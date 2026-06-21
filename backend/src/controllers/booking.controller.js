@@ -17,14 +17,19 @@ const notifyBookingUpdate = (req, booking, actionMessage = null) => {
   const io = req.app.get("io");
   if (io && booking) {
     if (booking.status === "Locked") return;
-    const payload = { bookingId: booking._id, status: booking.status, actionMessage };
-    
-    const isUnpaidCancelled = booking.status === "Cancelled" && booking.paymentStatus === "Unpaid";
+    const payload = {
+      bookingId: booking._id,
+      status: booking.status,
+      actionMessage,
+    };
+
+    const isUnpaidCancelled =
+      booking.status === "Cancelled" && booking.paymentStatus === "Unpaid";
 
     if (booking.customer) {
       io.to(booking.customer.toString()).emit("bookingUpdated", payload);
     }
-    
+
     if (booking.provider && !isUnpaidCancelled) {
       io.to(booking.provider.toString()).emit("bookingUpdated", payload);
     }
@@ -41,7 +46,7 @@ export const lockVehicle = asyncHandler(async (req, res) => {
   if (!req.user.isVerifiedEmail) {
     throw new ApiError(
       410,
-      "Please verify your email before booking."
+      "Please go to profile and verify your email before booking.",
     );
   }
 
@@ -54,7 +59,10 @@ export const lockVehicle = asyncHandler(async (req, res) => {
   end.setUTCHours(0, 0, 0, 0);
 
   if (isNaN(start) || isNaN(end) || start > end) {
-    throw new ApiError(400, "Invalid date range. End date must be after start date.");
+    throw new ApiError(
+      400,
+      "Invalid date range. End date must be after start date.",
+    );
   }
 
   const today = new Date();
@@ -73,7 +81,10 @@ export const lockVehicle = asyncHandler(async (req, res) => {
   });
 
   if (!vehicle) {
-    throw new ApiError(404, "Vehicle not found or is not available for booking.");
+    throw new ApiError(
+      404,
+      "Vehicle not found or is not available for booking.",
+    );
   }
 
   // Check for date conflicts in unavailableDates
@@ -87,7 +98,7 @@ export const lockVehicle = asyncHandler(async (req, res) => {
   if (hasConflict) {
     throw new ApiError(
       409,
-      "Some or all selected dates are no longer available. Please choose different dates."
+      "Some or all selected dates are no longer available. Please choose different dates.",
     );
   }
 
@@ -98,7 +109,7 @@ export const lockVehicle = asyncHandler(async (req, res) => {
   // Security deposit based on vehicle type
   const depositConfig = minDeposit[vehicle.type] || [3000, 20]; // fallback
   const securityDeposit = Math.round(
-    Math.max(depositConfig[0], (depositConfig[1] * totalPrice) / 100)
+    Math.max(depositConfig[0], (depositConfig[1] * totalPrice) / 100),
   );
   let securityDepositReason = "";
   if (depositConfig[0] > (depositConfig[1] * totalPrice) / 100) {
@@ -176,8 +187,8 @@ export const lockVehicle = asyncHandler(async (req, res) => {
           licensePlate: vehicle.licensePlate,
         },
       },
-      "Vehicle reserved for 15 minutes. Please complete payment to confirm your booking."
-    )
+      "Vehicle reserved for 15 minutes. Please complete payment to confirm your booking.",
+    ),
   );
 });
 
@@ -194,7 +205,7 @@ export const createPaymentOrder = asyncHandler(async (req, res) => {
   if (!booking) {
     throw new ApiError(
       404,
-      "Booking not found, already confirmed, or does not belong to you."
+      "Booking not found, already confirmed, or does not belong to you.",
     );
   }
 
@@ -203,12 +214,19 @@ export const createPaymentOrder = asyncHandler(async (req, res) => {
     await cleanExpiredLocks();
     throw new ApiError(
       410,
-      "Your 15-minute reservation window has expired. Please search again and rebook."
+      "Your 15-minute reservation window has expired. Please search again and rebook.",
     );
   }
 
   const advanceAmount = Math.round(booking.totalPrice * 0.25);
   const totalPayable = advanceAmount + booking.securityDepositHeld;
+
+  if (totalPayable > 500000) {
+    throw new ApiError(
+      400,
+      "Transaction amount cannot be ₹5,00,000 or greater per Razorpay's limit. Please decrease the amount.",
+    );
+  }
 
   // Initialize Razorpay
   const razorpay = new Razorpay({
@@ -233,18 +251,22 @@ export const createPaymentOrder = asyncHandler(async (req, res) => {
           amount: order.amount,
           currency: order.currency,
         },
-        "Payment order created successfully."
-      )
+        "Payment order created successfully.",
+      ),
     );
   } catch (error) {
-    throw new ApiError(500, "Could not create Razorpay order.");
+    throw new ApiError(
+      500,
+      "Could not create Razorpay order. Try decreasing the amount",
+    );
   }
 });
 
 // ─── Confirm Booking (simulate payment capture) ───────────────────────────────
 export const confirmBooking = asyncHandler(async (req, res) => {
   const { bookingId } = req.params;
-  const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
+  const { razorpay_payment_id, razorpay_order_id, razorpay_signature } =
+    req.body;
 
   const booking = await Booking.findOne({
     _id: bookingId,
@@ -255,7 +277,7 @@ export const confirmBooking = asyncHandler(async (req, res) => {
   if (!booking) {
     throw new ApiError(
       404,
-      "Booking not found, already confirmed, or does not belong to you."
+      "Booking not found, already confirmed, or does not belong to you.",
     );
   }
 
@@ -264,7 +286,7 @@ export const confirmBooking = asyncHandler(async (req, res) => {
     await cleanExpiredLocks();
     throw new ApiError(
       410,
-      "Your 15-minute reservation window has expired. Please search again and rebook."
+      "Your 15-minute reservation window has expired. Please search again and rebook.",
     );
   }
 
@@ -363,8 +385,8 @@ export const confirmBooking = asyncHandler(async (req, res) => {
         endDate: booking.endDate,
         vehicle: booking.vehicle,
       },
-      "Booking confirmed! Remaining 75% payment and security deposit are due on arrival at the pickup location."
-    )
+      "Booking confirmed! Remaining 75% payment and security deposit are due on arrival at the pickup location.",
+    ),
   );
 });
 
@@ -380,18 +402,26 @@ export const cancelBooking = asyncHandler(async (req, res) => {
   }
 
   const isCustomer = booking.customer.toString() === req.user._id.toString();
-  const isHost = booking.vehicle && booking.vehicle.provider.toString() === req.user._id.toString();
+  const isHost =
+    booking.vehicle &&
+    booking.vehicle.provider.toString() === req.user._id.toString();
 
   if (!isCustomer && !isHost) {
     throw new ApiError(403, "You are not authorized to cancel this booking.");
   }
 
   if (!["Locked", "Confirmed"].includes(booking.status)) {
-    throw new ApiError(400, "Booking cannot be cancelled in its current state.");
+    throw new ApiError(
+      400,
+      "Booking cannot be cancelled in its current state.",
+    );
   }
 
   if (isHost && booking.status === "Confirmed") {
-    throw new ApiError(403, "Hosts cannot directly cancel a confirmed booking. Please use 'Request Cancellation' instead.");
+    throw new ApiError(
+      403,
+      "Hosts cannot directly cancel a confirmed booking. Please use 'Request Cancellation' instead.",
+    );
   }
 
   // Remove the blocked dates from the vehicle
@@ -401,6 +431,15 @@ export const cancelBooking = asyncHandler(async (req, res) => {
   await Vehicle.findByIdAndUpdate(booking.vehicle._id, {
     $pull: { unavailableDates: { $in: datesToRemove } },
   });
+
+  // If the booking was never confirmed (still Locked), delete it completely
+  // so it doesn't clutter analytics or user history.
+  if (booking.status === "Locked") {
+    await booking.deleteOne();
+    return res.status(200).json(
+      new ApiResponse(200, null, "Booking cancelled successfully."),
+    );
+  }
 
   // ── Calculate refund: Host cancellation is always 100% refund ─────────────
   let refundPct = 0;
@@ -436,7 +475,7 @@ export const cancelBooking = asyncHandler(async (req, res) => {
         note: isHost
           ? `Host cancelled booking. Full refund: ₹${refundAmount} of ₹${booking.amountPaid} paid.`
           : `${label}. Refund: ₹${refundAmount} of ₹${booking.amountPaid} paid.`,
-      })
+      }),
     );
 
     // Always release the security deposit hold
@@ -452,7 +491,7 @@ export const cancelBooking = asyncHandler(async (req, res) => {
           gateway: "Simulated",
           gatewayPaymentIntentId: `SIM-${booking._id}-HOLDR`,
           note: `Security deposit hold of ₹${booking.securityDepositHeld} released — booking cancelled.`,
-        })
+        }),
       );
     }
   }
@@ -468,7 +507,7 @@ export const cancelBooking = asyncHandler(async (req, res) => {
       {
         status: "Cancelled",
         note: `Payout voided — booking cancelled before trip started.`,
-      }
+      },
     );
 
     // Reverse the platform fee
@@ -505,7 +544,8 @@ export const cancelBooking = asyncHandler(async (req, res) => {
   if (booking.cancellationRequestByHost?.isRequested) {
     booking.cancellationReason = `Host requested cancellation: ${booking.cancellationRequestByHost.reason}`;
   } else {
-    booking.cancellationReason = reason || (isHost ? "Cancelled by host" : "Cancelled by customer");
+    booking.cancellationReason =
+      reason || (isHost ? "Cancelled by host" : "Cancelled by customer");
   }
   await booking.save();
 
@@ -528,8 +568,8 @@ export const cancelBooking = asyncHandler(async (req, res) => {
           ? `Booking cancelled successfully by host. ${refundMsg}`
           : `Booking cancelled successfully by customer. ${refundMsg}`,
       },
-      isHost ? "Booking cancelled by host." : "Booking cancelled by customer."
-    )
+      isHost ? "Booking cancelled by host." : "Booking cancelled by customer.",
+    ),
   );
 });
 
@@ -541,8 +581,12 @@ export const getMyBookings = asyncHandler(async (req, res) => {
   const bookings = await Booking.find({
     customer: req.user._id,
     status: { $ne: "Locked" },
+    $nor: [{ status: "Cancelled", amountPaid: 0 }],
   })
-    .populate("vehicle", "brand model type category fuelType images address pricePerDay")
+    .populate(
+      "vehicle",
+      "brand model type category fuelType images address pricePerDay",
+    )
     .populate("provider", "name avatar phone email")
     .sort({ createdAt: -1 })
     .lean();
@@ -551,13 +595,15 @@ export const getMyBookings = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .lean();
 
-  return res.status(200).json(
-    new ApiResponse(
-      200,
-      { bookings, transactions },
-      "Bookings and transactions fetched successfully."
-    )
-  );
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { bookings, transactions },
+        "Bookings and transactions fetched successfully.",
+      ),
+    );
 });
 
 // ─── Request Cancellation (Host) ──────────────────────────────────────────────────────────
@@ -572,11 +618,17 @@ export const requestCancellation = asyncHandler(async (req, res) => {
   }
 
   if (booking.vehicle.provider.toString() !== req.user._id.toString()) {
-    throw new ApiError(403, "You can only request cancellation for your own vehicles.");
+    throw new ApiError(
+      403,
+      "You can only request cancellation for your own vehicles.",
+    );
   }
 
   if (booking.status !== "Confirmed" && booking.status !== "Pending") {
-    throw new ApiError(400, "Can only request cancellation for confirmed or pending bookings.");
+    throw new ApiError(
+      400,
+      "Can only request cancellation for confirmed or pending bookings.",
+    );
   }
 
   if (booking.cancellationRequestByHost?.isRequested) {
@@ -590,20 +642,22 @@ export const requestCancellation = asyncHandler(async (req, res) => {
   booking.cancellationRequestByHost = {
     isRequested: true,
     reason: reason.trim(),
-    requestedAt: new Date()
+    requestedAt: new Date(),
   };
 
   await booking.save();
 
   notifyBookingUpdate(req, booking, "Cancellation Requested");
 
-  return res.status(200).json(
-    new ApiResponse(
-      200,
-      { bookingId: booking._id },
-      "Cancellation request sent to the renter."
-    )
-  );
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { bookingId: booking._id },
+        "Cancellation request sent to the renter.",
+      ),
+    );
 });
 
 // ─── Reject Cancellation (Renter) ─────────────────────────────────────────────────────────
@@ -617,11 +671,17 @@ export const rejectCancellation = asyncHandler(async (req, res) => {
   }
 
   if (booking.customer.toString() !== req.user._id.toString()) {
-    throw new ApiError(403, "Only the renter can reject a cancellation request.");
+    throw new ApiError(
+      403,
+      "Only the renter can reject a cancellation request.",
+    );
   }
 
   if (!booking.cancellationRequestByHost?.isRequested) {
-    throw new ApiError(400, "No cancellation request pending for this booking.");
+    throw new ApiError(
+      400,
+      "No cancellation request pending for this booking.",
+    );
   }
 
   booking.cancellationRequestByHost = undefined;
@@ -629,13 +689,15 @@ export const rejectCancellation = asyncHandler(async (req, res) => {
 
   notifyBookingUpdate(req, booking, "Cancellation Rejected");
 
-  return res.status(200).json(
-    new ApiResponse(
-      200,
-      { bookingId: booking._id },
-      "Cancellation request rejected."
-    )
-  );
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { bookingId: booking._id },
+        "Cancellation request rejected.",
+      ),
+    );
 });
 
 // ─── Create Pickup Payment Order (Razorpay) ───────────────────────────────────
@@ -651,18 +713,33 @@ export const createPickupOrder = asyncHandler(async (req, res) => {
   if (!booking) {
     throw new ApiError(
       404,
-      "Booking not found, not confirmed, or does not belong to you."
+      "Booking not found, not confirmed, or does not belong to you.",
     );
   }
 
-  // We remove the rigid date check here. The booking state machine (Confirmed -> Ongoing)
-  // handles the safety. If the user and host physically proceed with the pickup early,
-  // the system should not block them due to timezone issues.
+  // Date check to enforce pickup is only allowed from midnight of start date
+  const today = new Date();
+  const tripStartDate = new Date(booking.startDate);
+  tripStartDate.setHours(0, 0, 0, 0);
+
+  if (today < tripStartDate) {
+    throw new ApiError(
+      400,
+      "You cannot pick up the vehicle before the trip start date.",
+    );
+  }
 
   const remainingAmount = booking.totalPrice - booking.amountPaid;
 
   if (remainingAmount <= 0) {
     throw new ApiError(400, "No remaining balance due for this booking.");
+  }
+
+  if (remainingAmount > 500000) {
+    throw new ApiError(
+      400,
+      "Transaction amount cannot be ₹5,00,000 or greater per Razorpay's limit. Please decrease the amount.",
+    );
   }
 
   const razorpay = new Razorpay({
@@ -687,8 +764,8 @@ export const createPickupOrder = asyncHandler(async (req, res) => {
           currency: order.currency,
           remainingAmount,
         },
-        "Pickup payment order created successfully."
-      )
+        "Pickup payment order created successfully.",
+      ),
     );
   } catch {
     throw new ApiError(500, "Could not create pickup payment order.");
@@ -710,12 +787,21 @@ export const markPickedUp = asyncHandler(async (req, res) => {
   if (!booking) {
     throw new ApiError(
       404,
-      "Booking not found, not confirmed, or does not belong to you."
+      "Booking not found, not confirmed, or does not belong to you.",
     );
   }
 
-  // Date check removed to avoid strict UTC vs Local timezone blocking.
-  // The state machine handles the flow (Confirmed -> Ongoing).
+  // Date check to enforce pickup is only allowed from midnight of start date
+  const today = new Date();
+  const tripStartDate = new Date(booking.startDate);
+  tripStartDate.setHours(0, 0, 0, 0);
+
+  if (today < tripStartDate) {
+    throw new ApiError(
+      400,
+      "You cannot pick up the vehicle before the trip start date.",
+    );
+  }
 
   // Verify Razorpay signature
   if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
@@ -765,8 +851,8 @@ export const markPickedUp = asyncHandler(async (req, res) => {
         amountPaid: booking.totalPrice,
         pickedUpAt: booking.pickedUpAt,
       },
-      "Payment confirmed! Vehicle pickup confirmed. Your trip is now ongoing. Have a safe journey!"
-    )
+      "Payment confirmed! Vehicle pickup confirmed. Your trip is now ongoing. Have a safe journey!",
+    ),
   );
 });
 
@@ -784,16 +870,14 @@ export const markReturned = asyncHandler(async (req, res) => {
   if (!booking) {
     throw new ApiError(
       404,
-      "Booking not found, not ongoing, or does not belong to your vehicle."
+      "Booking not found, not ongoing, or does not belong to your vehicle.",
     );
   }
 
-  const totalExtraCharge = damages.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
-  const maxAllowedCharge = booking.securityDepositHeld + (2 * (booking.vehicle.pricePerDay || 0));
-
-  if (totalExtraCharge > maxAllowedCharge) {
-    throw new ApiError(400, `Extra charges cannot exceed maximum allowed limit of ₹${maxAllowedCharge}.`);
-  }
+  const totalExtraCharge = damages.reduce(
+    (sum, d) => sum + (Number(d.amount) || 0),
+    0,
+  );
 
   if (totalExtraCharge === 0) {
     // Clean return: complete immediately
@@ -826,7 +910,7 @@ export const markReturned = asyncHandler(async (req, res) => {
     // Mark host payout as Succeeded
     await Transaction.findOneAndUpdate(
       { booking: booking._id, type: "Payout", status: "Pending" },
-      { status: "Succeeded", note: `Host payout released on trip completion` }
+      { status: "Succeeded", note: `Host payout released on trip completion` },
     );
 
     notifyBookingUpdate(req, booking);
@@ -839,10 +923,10 @@ export const markReturned = asyncHandler(async (req, res) => {
           status: "Completed",
           returnedAt: booking.returnedAt,
           extraCharge: 0,
-          depositRefund: booking.securityDepositHeld
+          depositRefund: booking.securityDepositHeld,
         },
-        "Trip completed successfully! Full security deposit released to customer."
-      )
+        "Trip completed successfully! Full security deposit released to customer.",
+      ),
     );
   } else {
     // Return with charges: pending customer approval
@@ -851,7 +935,7 @@ export const markReturned = asyncHandler(async (req, res) => {
       isRequested: true,
       damages,
       totalExtraCharge,
-      requestedAt: new Date()
+      requestedAt: new Date(),
     };
     await booking.save();
 
@@ -863,10 +947,10 @@ export const markReturned = asyncHandler(async (req, res) => {
         {
           bookingId: booking._id,
           status: "Return_Requested",
-          totalExtraCharge
+          totalExtraCharge,
         },
-        "Return requested. The customer must approve the extra charges to complete the trip."
-      )
+        "Return requested. The customer must approve the extra charges to complete the trip.",
+      ),
     );
   }
 });
@@ -888,7 +972,10 @@ export const acceptReturn = asyncHandler(async (req, res) => {
   const { totalExtraCharge } = booking.returnRequest;
 
   if (totalExtraCharge > booking.securityDepositHeld) {
-    throw new ApiError(400, "Extra charges exceed your security deposit. Please pay the remaining balance to complete the return.");
+    throw new ApiError(
+      400,
+      "Extra charges exceed your security deposit. Please pay the remaining balance to complete the return.",
+    );
   }
 
   const deduction = totalExtraCharge;
@@ -923,7 +1010,7 @@ export const acceptReturn = asyncHandler(async (req, res) => {
         gateway: "Simulated",
         gatewayPaymentIntentId: `SIM-${booking._id}-DED`,
         note: `Damage/extra charge of ₹${deduction} deducted from security deposit`,
-      })
+      }),
     );
   }
 
@@ -939,17 +1026,17 @@ export const acceptReturn = asyncHandler(async (req, res) => {
         gateway: "Simulated",
         gatewayPaymentIntentId: `SIM-${booking._id}-DEPREF`,
         note: `Security deposit refund of ₹${depositRefund} after ₹${deduction} deduction`,
-      })
+      }),
     );
   }
 
   await Transaction.findOneAndUpdate(
     { booking: booking._id, type: "Payout", status: "Pending" },
-    { 
-      status: "Succeeded", 
+    {
+      status: "Succeeded",
       amount: booking.hostPayout,
-      note: `Host payout released on trip completion (includes ₹${deduction} extra charges)` 
-    }
+      note: `Host payout released on trip completion (includes ₹${deduction} extra charges)`,
+    },
   );
 
   await Promise.all(transactions);
@@ -964,8 +1051,8 @@ export const acceptReturn = asyncHandler(async (req, res) => {
         status: "Completed",
         returnedAt: booking.returnedAt,
       },
-      `Return accepted. ₹${deduction} deducted from security deposit.`
-    )
+      `Return accepted. ₹${deduction} deducted from security deposit.`,
+    ),
   );
 });
 
@@ -983,10 +1070,21 @@ export const createReturnPaymentOrder = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Return request not found or not pending.");
   }
 
-  const remainingAmount = booking.returnRequest.totalExtraCharge - booking.securityDepositHeld;
+  const remainingAmount =
+    booking.returnRequest.totalExtraCharge - booking.securityDepositHeld;
 
   if (remainingAmount <= 0) {
-    throw new ApiError(400, "No additional payment required. Please just accept the return.");
+    throw new ApiError(
+      400,
+      "No additional payment required. Please just accept the return.",
+    );
+  }
+
+  if (remainingAmount > 500000) {
+    throw new ApiError(
+      400,
+      "Transaction amount cannot be ₹5,00,000 or greater per Razorpay's limit. Please decrease the amount.",
+    );
   }
 
   const razorpay = new Razorpay({
@@ -1011,18 +1109,22 @@ export const createReturnPaymentOrder = asyncHandler(async (req, res) => {
           currency: order.currency,
           remainingAmount,
         },
-        "Return payment order created."
-      )
+        "Return payment order created.",
+      ),
     );
   } catch (err) {
-    throw new ApiError(500, "Could not create Razorpay order for return.");
+    throw new ApiError(
+      500,
+      "Could not create Razorpay order for return. Try decreasing the amount",
+    );
   }
 });
 
 // ─── Pay & Accept Return (Customer - when charge > deposit) ─────────────────
 export const payAndAcceptReturn = asyncHandler(async (req, res) => {
   const { bookingId } = req.params;
-  const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
+  const { razorpay_payment_id, razorpay_order_id, razorpay_signature } =
+    req.body;
 
   const booking = await Booking.findOne({
     _id: bookingId,
@@ -1048,7 +1150,8 @@ export const payAndAcceptReturn = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid payment signature.");
   }
 
-  const remainingAmount = booking.returnRequest.totalExtraCharge - booking.securityDepositHeld;
+  const remainingAmount =
+    booking.returnRequest.totalExtraCharge - booking.securityDepositHeld;
 
   const totalExtra = booking.returnRequest.totalExtraCharge;
 
@@ -1096,11 +1199,11 @@ export const payAndAcceptReturn = asyncHandler(async (req, res) => {
 
   await Transaction.findOneAndUpdate(
     { booking: booking._id, type: "Payout", status: "Pending" },
-    { 
-      status: "Succeeded", 
+    {
+      status: "Succeeded",
       amount: booking.hostPayout,
-      note: `Host payout released on trip completion (includes ₹${totalExtra} extra charges)` 
-    }
+      note: `Host payout released on trip completion (includes ₹${totalExtra} extra charges)`,
+    },
   );
 
   notifyBookingUpdate(req, booking);
@@ -1113,7 +1216,7 @@ export const payAndAcceptReturn = asyncHandler(async (req, res) => {
         status: "Completed",
         returnedAt: booking.returnedAt,
       },
-      "Return accepted and extra charges paid successfully."
-    )
+      "Return accepted and extra charges paid successfully.",
+    ),
   );
 });

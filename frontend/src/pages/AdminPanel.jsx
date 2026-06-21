@@ -14,18 +14,54 @@ import SupportChat from "../components/SupportChat";
 import AdminUsers from "../components/admin/AdminUsers";
 import AdminVehicles from "../components/admin/AdminVehicles";
 import AdminBookings from "../components/admin/AdminBookings";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+} from "recharts";
+import BookingDetailsModal from "../components/admin/BookingDetailsModal.jsx";
 
 const AdminPanel = () => {
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalVehicles: 0,
     totalBookings: 0,
+    bookingStats: {
+      completed: 0,
+      cancelledTotal: 0,
+      cancelledByAdmin: 0,
+      cancelledByHost: 0,
+      cancelledByCustomer: 0,
+    },
+    recentCancellations: [],
   });
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("dashboard"); // "dashboard" or "messages"
-  const [conversations, setConversations] = useState([]);
-  const [activeChatUserId, setActiveChatUserId] = useState(null);
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [booking, setBooking] = useState(null);
+  const [isFetchingBooking, setIsFetchingBooking] = useState(false);
+
+  const handleRowClick = async (bookingId) => {
+    try {
+      setIsFetchingBooking(true);
+      const res = await axiosInstance.get(`/admin/bookings/${bookingId}`);
+      if (res.data.success) {
+        setBooking(res.data.data);
+      }
+    } catch (error) {
+      toast.error("Failed to fetch booking details");
+    } finally {
+      setIsFetchingBooking(false);
+    }
+  };
 
   useEffect(() => {
     const fetchAdminData = async () => {
@@ -42,20 +78,6 @@ const AdminPanel = () => {
     };
     fetchAdminData();
   }, []);
-
-  useEffect(() => {
-    if (activeTab === "messages") {
-      const fetchConversations = async () => {
-        try {
-          const res = await axiosInstance.get("/message/admin/conversations");
-          setConversations(res.data.data || []);
-        } catch (error) {
-          console.error("Failed to fetch conversations", error);
-        }
-      };
-      fetchConversations();
-    }
-  }, [activeTab]);
 
   if (loading) {
     return (
@@ -159,6 +181,172 @@ const AdminPanel = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Charts Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+                  <h3 className="text-lg font-bold mb-6">Booking Overview</h3>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={[
+                          {
+                            name: "Bookings",
+                            Total: stats.totalBookings,
+                            Completed: stats.bookingStats?.completed || 0,
+                            Cancelled: stats.bookingStats?.cancelledTotal || 0,
+                          },
+                        ]}
+                        margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                        <XAxis dataKey="name" stroke="#a1a1aa" />
+                        <YAxis stroke="#a1a1aa" />
+                        <RechartsTooltip
+                          contentStyle={{
+                            backgroundColor: "#18181b",
+                            borderColor: "#27272a",
+                            color: "#f4f4f5",
+                          }}
+                        />
+                        <Legend />
+                        <Bar
+                          dataKey="Total"
+                          fill="#3b82f6"
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar
+                          dataKey="Completed"
+                          fill="#10b981"
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar
+                          dataKey="Cancelled"
+                          fill="#ef4444"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+                  <h3 className="text-lg font-bold mb-6">
+                    Cancellations by Role
+                  </h3>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={[
+                            {
+                              name: "By Admin",
+                              value: stats.bookingStats?.cancelledByAdmin || 0,
+                            },
+                            {
+                              name: "By Host",
+                              value: stats.bookingStats?.cancelledByHost || 0,
+                            },
+                            {
+                              name: "By Customer",
+                              value:
+                                stats.bookingStats?.cancelledByCustomer || 0,
+                            },
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={100}
+                          fill="#8884d8"
+                          paddingAngle={5}
+                          dataKey="value"
+                          label={({ name, percent }) =>
+                            `${name} ${(percent * 100).toFixed(0)}%`
+                          }
+                        >
+                          <Cell fill="#ef4444" /> {/* Admin: Red */}
+                          <Cell fill="#f59e0b" /> {/* Host: Orange */}
+                          <Cell fill="#8b5cf6" /> {/* Customer: Purple */}
+                        </Pie>
+                        <RechartsTooltip
+                          contentStyle={{
+                            backgroundColor: "#18181b",
+                            borderColor: "#27272a",
+                            color: "#f4f4f5",
+                          }}
+                        />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Cancellations Table */}
+              {booking && (
+                <BookingDetailsModal
+                  onClose={() => setBooking(null)}
+                  selectedBooking={booking}
+                />
+              )}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+                <h3 className="text-lg font-bold mb-6">Recent Cancellations</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-zinc-800 text-zinc-400 text-sm">
+                        <th className="py-3 px-4 font-medium">Role</th>
+                        <th className="py-3 px-4 font-medium">Cancelled By</th>
+                        <th className="py-3 px-4 font-medium">Reason</th>
+                        <th className="py-3 px-4 font-medium">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800/50">
+                      {stats.recentCancellations?.length > 0 ? (
+                        stats.recentCancellations.map((cancel) => (
+                          <tr
+                            key={cancel.bookingId}
+                            className="hover:bg-zinc-800/20 transition-colors cursor-pointer"
+                            onClick={() => handleRowClick(cancel.bookingId)}
+                          >
+                            <td className="py-3 px-4 text-sm">
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  cancel.cancelledBy === "Admin"
+                                    ? "bg-red-500/10 text-red-500"
+                                    : cancel.cancelledBy === "Host"
+                                      ? "bg-orange-500/10 text-orange-500"
+                                      : "bg-purple-500/10 text-purple-500"
+                                }`}
+                              >
+                                {cancel.cancelledBy}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-sm font-medium">
+                              {cancel.cancelledByName}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-zinc-400 max-w-xs truncate">
+                              {cancel.reason || "No reason provided"}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-zinc-400">
+                              {new Date(cancel.date).toLocaleDateString('en-GB')}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan="5"
+                            className="py-8 text-center text-zinc-500 text-sm"
+                          >
+                            No recent cancellations found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </>
           ) : activeTab === "users" ? (
             <AdminUsers />
@@ -167,49 +355,7 @@ const AdminPanel = () => {
           ) : activeTab === "bookings" ? (
             <AdminBookings />
           ) : (
-            <div className="flex bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden h-[600px]">
-              {/* Conversations List */}
-              <div className="w-1/3 border-r border-zinc-800 overflow-y-auto">
-                <div className="p-4 border-b border-zinc-800">
-                  <h3 className="font-bold">Conversations</h3>
-                </div>
-                <div className="divide-y divide-zinc-800">
-                  {conversations.length === 0 && (
-                    <div className="p-4 text-zinc-500 text-center text-sm">
-                      No messages yet.
-                    </div>
-                  )}
-                  {conversations.map((conv) => (
-                    <div
-                      key={conv.user._id}
-                      onClick={() => setActiveChatUserId(conv.user._id)}
-                      className={`p-4 cursor-pointer transition-colors ${activeChatUserId === conv.user._id ? "bg-zinc-800" : "hover:bg-zinc-800/50"}`}
-                    >
-                      <div className="font-medium text-sm text-zinc-200">
-                        {conv.user.fullName || conv.user.email}
-                      </div>
-                      <div className="text-xs text-zinc-500 truncate mt-1">
-                        {conv.lastMessage.content}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Chat View */}
-              <div className="flex-1 bg-zinc-950">
-                {activeChatUserId ? (
-                  <SupportChat
-                    isWidget={false}
-                    otherUserId={activeChatUserId}
-                  />
-                ) : (
-                  <div className="h-full flex items-center justify-center text-zinc-500">
-                    Select a conversation to start messaging
-                  </div>
-                )}
-              </div>
-            </div>
+            <SupportChat isWidget={false} />
           )}
         </div>
       </main>

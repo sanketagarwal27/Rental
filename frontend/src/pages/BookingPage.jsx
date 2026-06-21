@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
-import { confirmBooking, cancelBooking, lockVehicle, createPaymentOrder } from "../api/booking";
+import {
+  confirmBooking,
+  cancelBooking,
+  lockVehicle,
+  createPaymentOrder,
+} from "../api/booking";
 import { getVehicleById } from "../api/vehicle";
 import { toast } from "sonner";
 import {
@@ -33,12 +38,7 @@ const formatINR = (val) =>
   }).format(val || 0);
 
 const formatDate = (d) =>
-  new Date(d).toLocaleDateString("en-IN", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  new Date(d).toLocaleDateString("en-GB");
 
 const getRefundLabel = (startDate) => {
   const now = new Date();
@@ -108,8 +108,6 @@ const CountdownTimer = ({ lockedUntil, onExpire }) => {
     </div>
   );
 };
-
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Component
@@ -198,11 +196,7 @@ const BookingPage = () => {
     while (cur <= endDt && limit < 100) {
       if (unavailable.includes(cur.getTime())) {
         conflicts.push(
-          cur.toLocaleDateString("en-IN", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          }),
+          cur.toLocaleDateString("en-GB"),
         );
       }
       cur.setDate(cur.getDate() + 1);
@@ -222,8 +216,6 @@ const BookingPage = () => {
       setDateConflict(null);
     }
   }, [pickStart, pickEnd, vehicleInfo]);
-
-
 
   // ── Lock vehicle (check availability flow) ────────────────────────────────
   const handleLockAndBook = async () => {
@@ -290,7 +282,9 @@ const BookingPage = () => {
               toast.success("Payment successful! Booking confirmed 🎉");
             }
           } catch (err) {
-            toast.error(err?.response?.data?.message || "Payment verification failed.");
+            toast.error(
+              err?.response?.data?.message || "Payment verification failed.",
+            );
             setPaying(false);
           }
         },
@@ -298,22 +292,24 @@ const BookingPage = () => {
           ondismiss: function () {
             setPaying(false);
             toast.info("Payment cancelled.");
-          }
+          },
         },
         theme: {
-          color: "#3B82F6"
-        }
+          color: "#3B82F6",
+        },
       };
 
       const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', function (response){
+      rzp.on("payment.failed", function (response) {
         toast.error(response.error.description || "Payment failed");
         setPaying(false);
       });
       rzp.open();
     } catch (err) {
       toast.error(
-        err?.response?.data?.message || err.message || "Payment initialization failed.",
+        err?.response?.data?.message ||
+          err.message ||
+          "Payment initialization failed.",
       );
       setPaying(false);
     }
@@ -670,10 +666,7 @@ const BookingPage = () => {
                             key={idx}
                             className="text-[10px] font-mono bg-zinc-800/50 border border-zinc-700 text-zinc-400 px-2 py-0.5 rounded-md"
                           >
-                            {d.toLocaleDateString("en-IN", {
-                              day: "numeric",
-                              month: "short",
-                            })}
+                            {d.toLocaleDateString("en-GB")}
                           </span>
                         );
                       })}
@@ -1093,6 +1086,17 @@ const BookingPage = () => {
                     <Shield className="w-3 h-3 text-emerald-400" />
                     Secure Checkout
                   </div>
+                </div>
+
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-xs text-amber-400 space-y-1.5 leading-relaxed">
+                  <p className="font-semibold text-amber-300 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 shrink-0" /> Mock Payment
+                    Environment
+                  </p>
+                  <p>
+                    This is a simulated payment gateway for demonstration
+                    purposes. No real charges will be made.
+                  </p>
                 </div>
 
                 {bookingData?.startDate && bookingData?.endDate && (
