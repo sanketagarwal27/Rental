@@ -42,9 +42,9 @@ const formatDate = (d) =>
 
 const getRefundLabel = (startDate) => {
   const now = new Date();
-  now.setHours(0, 0, 0, 0);
+  now.setUTCHours(0, 0, 0, 0);
   const start = new Date(startDate);
-  start.setHours(0, 0, 0, 0);
+  start.setUTCHours(0, 0, 0, 0);
   const days = Math.ceil((start - now) / 86400000);
   if (days >= 7)
     return {

@@ -232,7 +232,7 @@ const RenterTripsTable = ({
               {/* Action buttons — Confirmed trips */}
               {bk.status === "Confirmed" && (
                 <div className="ml-14 flex flex-col items-start gap-2">
-                  {new Date() >= new Date(new Date(bk.startDate).setHours(0, 0, 0, 0)) ? (
+                  {new Date().setUTCHours(0, 0, 0, 0) >= new Date(bk.startDate).setUTCHours(0, 0, 0, 0) ? (
                     <button
                       onClick={() =>
                         onPickedUp(bk._id, bk.totalPrice - bk.amountPaid)

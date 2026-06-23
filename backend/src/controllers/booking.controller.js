@@ -717,10 +717,11 @@ export const createPickupOrder = asyncHandler(async (req, res) => {
     );
   }
 
-  // Date check to enforce pickup is only allowed from midnight of start date
+  // Date check to enforce pickup is only allowed from midnight (UTC) of start date
   const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
   const tripStartDate = new Date(booking.startDate);
-  tripStartDate.setHours(0, 0, 0, 0);
+  tripStartDate.setUTCHours(0, 0, 0, 0);
 
   if (today < tripStartDate) {
     throw new ApiError(
@@ -791,10 +792,11 @@ export const markPickedUp = asyncHandler(async (req, res) => {
     );
   }
 
-  // Date check to enforce pickup is only allowed from midnight of start date
+  // Date check to enforce pickup is only allowed from midnight (UTC) of start date
   const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
   const tripStartDate = new Date(booking.startDate);
-  tripStartDate.setHours(0, 0, 0, 0);
+  tripStartDate.setUTCHours(0, 0, 0, 0);
 
   if (today < tripStartDate) {
     throw new ApiError(
