@@ -3,6 +3,7 @@ import axiosInstance from "../../api/axios";
 import { toast } from "sonner";
 import { Search, Ban, CheckCircle, Car } from "lucide-react";
 import AdminOtpModal from "./AdminOtpModal";
+import VehicleDetailsModal from "../VehicleDetailsModal";
 
 export default function AdminVehicles() {
   const [vehicles, setVehicles] = useState([]);
@@ -10,6 +11,7 @@ export default function AdminVehicles() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
+  const [selectedVehicleForDetails, setSelectedVehicleForDetails] = useState(null);
 
   const [otpModal, setOtpModal] = useState({ open: false, id: null, isBlocked: false });
 
@@ -102,7 +104,11 @@ export default function AdminVehicles() {
             </thead>
             <tbody className="divide-y divide-zinc-800">
               {vehicles.map((v) => (
-                <tr key={v._id} className="hover:bg-zinc-800/30 transition-colors">
+                <tr 
+                  key={v._id} 
+                  onClick={() => setSelectedVehicleForDetails(v)}
+                  className="hover:bg-zinc-800/30 transition-colors cursor-pointer"
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-zinc-800 overflow-hidden flex items-center justify-center text-zinc-500">
@@ -140,7 +146,7 @@ export default function AdminVehicles() {
                     <div className="flex justify-end gap-2">
                       {v.status !== "Approved" && (
                         <button
-                          onClick={() => verifyVehicle(v._id)}
+                          onClick={(e) => { e.stopPropagation(); verifyVehicle(v._id); }}
                           className="p-2 text-zinc-400 hover:text-emerald-400 hover:bg-emerald-400/10 rounded-lg transition-colors"
                           title="Verify / Approve Vehicle"
                         >
@@ -148,8 +154,10 @@ export default function AdminVehicles() {
                         </button>
                       )}
                       <button
-                        onClick={() => toggleBlock(v._id, v.isBlocked)}
-                        className={`p-2 rounded-lg transition-colors ${v.isBlocked ? "text-emerald-400 hover:bg-emerald-400/10" : "text-zinc-400 hover:text-red-400 hover:bg-red-400/10"}`}
+                        onClick={(e) => { e.stopPropagation(); toggleBlock(v._id, v.isBlocked); }}
+                        className={`p-2 rounded-lg transition-colors ${
+                          v.isBlocked ? "text-red-500 bg-red-500/10 hover:bg-red-500/20" : "text-zinc-400 hover:text-red-400 hover:bg-red-400/10"
+                        }`}
                         title={v.isBlocked ? "Unblock Vehicle" : "Block Vehicle"}
                       >
                         {v.isBlocked ? <CheckCircle size={18} /> : <Ban size={18} />}
@@ -190,12 +198,20 @@ export default function AdminVehicles() {
         </div>
       </div>
 
-      <AdminOtpModal
-        isOpen={otpModal.open}
-        onClose={() => setOtpModal({ ...otpModal, open: false })}
-        onConfirm={executeBlock}
-        title={otpModal.isBlocked ? "Unblock Vehicle" : "Block Vehicle"}
-        description={`You are about to ${otpModal.isBlocked ? "unblock" : "block"} this vehicle.`}
+      {otpModal.open && (
+        <AdminOtpModal
+          isOpen={otpModal.open}
+          onClose={() => setOtpModal({ ...otpModal, open: false })}
+          onConfirm={executeBlock}
+          title={otpModal.isBlocked ? "Unblock Vehicle" : "Block Vehicle"}
+          description={`You are about to ${otpModal.isBlocked ? "unblock" : "block"} this vehicle.`}
+        />
+      )}
+
+      {/* Vehicle Details Modal */}
+      <VehicleDetailsModal
+        vehicle={selectedVehicleForDetails}
+        onClose={() => setSelectedVehicleForDetails(null)}
       />
     </div>
   );

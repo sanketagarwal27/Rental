@@ -26,6 +26,7 @@ import {
   Trash2,
   Lock,
 } from "lucide-react";
+import VehicleDetailsModal from "../components/VehicleDetailsModal";
 
 // Helper to format currency in INR (₹)
 const formatINR = (val) => {
@@ -63,6 +64,7 @@ const MyVehicles = () => {
   // Delete Modal states
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [vehicleToDelete, setVehicleToDelete] = useState(null);
+  const [selectedVehicleForDetails, setSelectedVehicleForDetails] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchData = async () => {
@@ -503,7 +505,8 @@ const MyVehicles = () => {
                   return (
                     <div
                       key={v._id}
-                      className="p-5 border border-zinc-800 rounded-2xl bg-zinc-900/20 hover:border-zinc-800/80 hover:bg-zinc-900/30 transition-all flex flex-col justify-between gap-4"
+                      onClick={() => setSelectedVehicleForDetails(v)}
+                      className="p-5 border border-zinc-800 rounded-2xl bg-zinc-900/20 hover:border-zinc-800/80 hover:bg-zinc-900/30 transition-all flex flex-col justify-between gap-4 cursor-pointer"
                     >
                       <div className="flex gap-4">
                         {/* Vehicle Image */}
@@ -537,7 +540,7 @@ const MyVehicles = () => {
                               </span>
                             )}
                             <button
-                              onClick={() => handleDeleteClick(v)}
+                              onClick={(e) => { e.stopPropagation(); handleDeleteClick(v); }}
                               className="ml-auto text-zinc-500 hover:text-rose-400 transition cursor-pointer"
                               title="Delete Vehicle"
                             >
@@ -599,9 +602,10 @@ const MyVehicles = () => {
                       <div className="flex justify-end gap-2 pt-1">
                         {v.status === "Draft" ? (
                           <button
-                            onClick={() =>
-                              navigate("/list-vehicle", { state: { draft: v } })
-                            }
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate("/list-vehicle", { state: { draft: v } });
+                            }}
                             className="flex items-center gap-1 px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition shadow-md shadow-blue-600/10 cursor-pointer"
                           >
                             Complete Details{" "}
@@ -611,12 +615,13 @@ const MyVehicles = () => {
                           <div className="flex items-center gap-3">
                             {v.status === "Approved" && (
                               <button
-                                onClick={() =>
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   handleToggleAvailability(
                                     v._id,
                                     !v.isAvailable,
-                                  )
-                                }
+                                  );
+                                }}
                                 className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition border cursor-pointer ${
                                   v.isAvailable
                                     ? "bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20 text-amber-400"
@@ -630,14 +635,14 @@ const MyVehicles = () => {
                             {v.status !== "Rejected" && (
                               <>
                                 <button
-                                  onClick={() => handleEditVehicle(v)}
+                                  onClick={(e) => { e.stopPropagation(); handleEditVehicle(v); }}
                                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-lg transition cursor-pointer"
                                 >
                                   <Settings className="w-3.5 h-3.5 text-zinc-400" />{" "}
                                   Edit Details
                                 </button>
                                 <button
-                                  onClick={() => openAvailabilityModal(v)}
+                                  onClick={(e) => { e.stopPropagation(); openAvailabilityModal(v); }}
                                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-lg transition cursor-pointer"
                                 >
                                   <Calendar className="w-3.5 h-3.5 text-blue-400" />{" "}
@@ -903,6 +908,11 @@ const MyVehicles = () => {
           </div>
         )}
 
+        {/* Vehicle Details Modal */}
+        <VehicleDetailsModal
+          vehicle={selectedVehicleForDetails}
+          onClose={() => setSelectedVehicleForDetails(null)}
+        />
       </main>
     </div>
   );
