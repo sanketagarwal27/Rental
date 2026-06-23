@@ -2,7 +2,11 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { getUserDashboardData } from "../api/profile";
-import { updateVehicleAvailability, updateVehicleDetails, deleteVehicle } from "../api/vehicle";
+import {
+  updateVehicleAvailability,
+  updateVehicleDetails,
+  deleteVehicle,
+} from "../api/vehicle";
 import { toast } from "sonner";
 import {
   Car,
@@ -53,18 +57,25 @@ const MyVehicles = () => {
   const [selectedVehicleForAvailability, setSelectedVehicleForAvailability] =
     useState(null);
   const [unavailableDatesList, setUnavailableDatesList] = useState([]);
-  const [bookedDatesForSelected, setBookedDatesForSelected] = useState(new Set());
+  const [bookedDatesForSelected, setBookedDatesForSelected] = useState(
+    new Set(),
+  );
   const [newDateInput, setNewDateInput] = useState("");
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedVehicleForEdit, setSelectedVehicleForEdit] = useState(null);
-  const [editFormData, setEditFormData] = useState({ pricePerDay: "", features: "", odometer: "" });
+  const [editFormData, setEditFormData] = useState({
+    pricePerDay: "",
+    features: "",
+    odometer: "",
+  });
   const [editLoading, setEditLoading] = useState(false);
 
   // Delete Modal states
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [vehicleToDelete, setVehicleToDelete] = useState(null);
-  const [selectedVehicleForDetails, setSelectedVehicleForDetails] = useState(null);
+  const [selectedVehicleForDetails, setSelectedVehicleForDetails] =
+    useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchData = async () => {
@@ -84,7 +95,7 @@ const MyVehicles = () => {
 
   const openAvailabilityModal = (vehicle) => {
     setSelectedVehicleForAvailability(vehicle);
-    
+
     // Get today's local date string (YYYY-MM-DD)
     const d = new Date();
     const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -98,7 +109,7 @@ const MyVehicles = () => {
     const activeBookings = bookings.filter(
       (b) =>
         b.vehicle?._id === vehicle._id &&
-        ["Locked", "Confirmed", "Ongoing"].includes(b.status)
+        ["Locked", "Confirmed", "Ongoing"].includes(b.status),
     );
 
     const bookedSet = new Set();
@@ -180,8 +191,10 @@ const MyVehicles = () => {
     setSelectedVehicleForEdit(v);
     setEditFormData({
       pricePerDay: v.pricePerDay || "",
-      features: Array.isArray(v.features) ? v.features.join(", ") : (v.features || ""),
-      odometer: v.odometer || ""
+      features: Array.isArray(v.features)
+        ? v.features.join(", ")
+        : v.features || "",
+      odometer: v.odometer || "",
     });
     setEditModalOpen(true);
   };
@@ -198,13 +211,15 @@ const MyVehicles = () => {
       await updateVehicleDetails(selectedVehicleForEdit._id, {
         pricePerDay: editFormData.pricePerDay,
         features: editFormData.features,
-        odometer: editFormData.odometer
+        odometer: editFormData.odometer,
       });
       toast.success("Vehicle details updated successfully");
       closeEditModal();
       fetchData(); // refresh the list
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to update vehicle details");
+      toast.error(
+        err.response?.data?.message || "Failed to update vehicle details",
+      );
     } finally {
       setEditLoading(false);
     }
@@ -225,7 +240,9 @@ const MyVehicles = () => {
       setDeleteModalOpen(false);
       setVehicleToDelete(null);
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Could not delete vehicle.");
+      toast.error(
+        error?.response?.data?.message || "Could not delete vehicle.",
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -238,7 +255,12 @@ const MyVehicles = () => {
   // Calculate stats
   const totalRevenue = bookings
     .filter((b) => ["Confirmed", "Completed", "Ongoing"].includes(b.status))
-    .reduce((sum, b) => sum + ((b.hostPayout || b.totalPrice * 0.95 || 0) - (b.extraCharge || 0)), 0);
+    .reduce(
+      (sum, b) =>
+        sum +
+        ((b.hostPayout || b.totalPrice * 0.95 || 0) - (b.extraCharge || 0)),
+      0,
+    );
 
   // Calculate revenue per vehicle
   const getVehicleRevenue = (vehicleId) => {
@@ -248,7 +270,12 @@ const MyVehicles = () => {
           b.vehicle?._id === vehicleId &&
           ["Confirmed", "Completed", "Ongoing"].includes(b.status),
       )
-      .reduce((sum, b) => sum + ((b.hostPayout || b.totalPrice * 0.95 || 0) - (b.extraCharge || 0)), 0);
+      .reduce(
+        (sum, b) =>
+          sum +
+          ((b.hostPayout || b.totalPrice * 0.95 || 0) - (b.extraCharge || 0)),
+        0,
+      );
   };
 
   // Get status color helper
@@ -310,7 +337,7 @@ const MyVehicles = () => {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-extrabold tracking-tight bg-linear-to-r from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent">
               My Fleet Manager
             </h1>
             <p className="text-sm text-zinc-400 mt-1">
@@ -331,7 +358,7 @@ const MyVehicles = () => {
           <div className="space-y-6 flex-1 flex flex-col">
             {/* Summary Statistics Panel */}
             <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/10 backdrop-blur-md flex flex-col sm:flex-row justify-between gap-6 divide-y sm:divide-y-0 sm:divide-x divide-zinc-800/60">
-              <div className="flex-1 min-w-[120px] pb-4 sm:pb-0 sm:px-6 first:pl-0">
+              <div className="flex-1 min-w-30 pb-4 sm:pb-0 sm:px-6 first:pl-0">
                 <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">
                   Total Fleet Size
                 </span>
@@ -342,7 +369,7 @@ const MyVehicles = () => {
                   Active, drafts & reviews
                 </span>
               </div>
-              <div className="flex-1 min-w-[120px] pt-4 sm:pt-0 sm:px-6">
+              <div className="flex-1 min-w-30 pt-4 sm:pt-0 sm:px-6">
                 <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">
                   Fleet Earnings
                 </span>
@@ -353,11 +380,11 @@ const MyVehicles = () => {
                   From guest bookings
                 </span>
               </div>
-              <div className="flex-1 min-w-[120px] pt-4 sm:pt-0 sm:px-6">
+              <div className="flex-1 min-w-30 pt-4 sm:pt-0 sm:px-6">
                 <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">
                   Avg Fleet Rating
                 </span>
-                <span className="text-2xl font-extrabold block mt-2 text-amber-450 flex items-center gap-1.5">
+                <span className="text-2xl font-extrabold block mt-2 text-amber-450 items-center gap-1.5">
                   <Star className="w-5 h-5 fill-amber-400 stroke-none" />
                   {vehicles.length > 0
                     ? (
@@ -372,7 +399,7 @@ const MyVehicles = () => {
                   Across all reviews
                 </span>
               </div>
-              <div className="flex-1 min-w-[120px] pt-4 sm:pt-0 sm:px-6 last:pr-0">
+              <div className="flex-1 min-w-30 pt-4 sm:pt-0 sm:px-6 last:pr-0">
                 <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">
                   Awaiting Review
                 </span>
@@ -540,7 +567,10 @@ const MyVehicles = () => {
                               </span>
                             )}
                             <button
-                              onClick={(e) => { e.stopPropagation(); handleDeleteClick(v); }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteClick(v);
+                              }}
                               className="ml-auto text-zinc-500 hover:text-rose-400 transition cursor-pointer"
                               title="Delete Vehicle"
                             >
@@ -558,7 +588,7 @@ const MyVehicles = () => {
                       </div>
 
                       {/* Stats / Details */}
-                      <div className="grid grid-cols-3 gap-2 border-y border-zinc-900/60 py-3 bg-zinc-950/20 px-3 rounded-xl border-zinc-800">
+                      <div className="grid grid-cols-3 gap-2 border-y py-3 bg-zinc-950/20 px-3 rounded-xl border-zinc-800">
                         <div className="text-center">
                           <span className="text-[10px] text-zinc-500 uppercase block font-semibold">
                             Rate
@@ -571,7 +601,7 @@ const MyVehicles = () => {
                           <span className="text-[10px] text-zinc-500 uppercase block font-semibold">
                             Rating
                           </span>
-                          <span className="text-xs font-bold text-amber-400 block mt-1 flex items-center justify-center gap-0.5">
+                          <span className="text-xs font-bold text-amber-400 mt-1 flex items-center justify-center gap-0.5">
                             <Star className="w-3.5 h-3.5 fill-amber-400 stroke-none" />{" "}
                             {v.averageRating?.toFixed(1) || "0.0"}
                           </span>
@@ -604,7 +634,9 @@ const MyVehicles = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate("/list-vehicle", { state: { draft: v } });
+                              navigate("/list-vehicle", {
+                                state: { draft: v },
+                              });
                             }}
                             className="flex items-center gap-1 px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition shadow-md shadow-blue-600/10 cursor-pointer"
                           >
@@ -635,14 +667,20 @@ const MyVehicles = () => {
                             {v.status !== "Rejected" && (
                               <>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); handleEditVehicle(v); }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditVehicle(v);
+                                  }}
                                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-lg transition cursor-pointer"
                                 >
                                   <Settings className="w-3.5 h-3.5 text-zinc-400" />{" "}
                                   Edit Details
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); openAvailabilityModal(v); }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openAvailabilityModal(v);
+                                  }}
                                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-lg transition cursor-pointer"
                                 >
                                   <Calendar className="w-3.5 h-3.5 text-blue-400" />{" "}
@@ -725,7 +763,7 @@ const MyVehicles = () => {
                       </p>
                     </div>
                   ) : (
-                    <div className="max-h-[200px] overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+                    <div className="max-h-50 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
                       {unavailableDatesList.map((date) => {
                         const isBooked = bookedDatesForSelected.has(date);
                         return (
@@ -734,7 +772,9 @@ const MyVehicles = () => {
                             className="flex items-center justify-between p-3 bg-zinc-900 border border-zinc-800 rounded-xl"
                           >
                             <div className="flex items-center gap-3">
-                              <div className={`w-2 h-2 rounded-full ${isBooked ? "bg-amber-500" : "bg-rose-500"}`} />
+                              <div
+                                className={`w-2 h-2 rounded-full ${isBooked ? "bg-amber-500" : "bg-rose-500"}`}
+                              />
                               <span className="text-sm font-medium text-zinc-300">
                                 {new Date(date).toLocaleDateString("en-GB")}
                               </span>
@@ -754,7 +794,9 @@ const MyVehicles = () => {
                               </button>
                             ) : (
                               <button
-                                onClick={() => handleRemoveUnavailableDate(date)}
+                                onClick={() =>
+                                  handleRemoveUnavailableDate(date)
+                                }
                                 className="p-1.5 bg-zinc-800 hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 rounded-lg transition cursor-pointer"
                                 title="Remove date"
                               >
@@ -805,13 +847,19 @@ const MyVehicles = () => {
               <div className="flex items-center justify-between p-5 border-b border-zinc-800/80">
                 <div>
                   <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
-                    <Car className="w-5 h-5 text-blue-500" /> Edit Vehicle Details
+                    <Car className="w-5 h-5 text-blue-500" /> Edit Vehicle
+                    Details
                   </h3>
                   <p className="text-xs text-zinc-500 mt-1">
-                    {selectedVehicleForEdit.brand} {selectedVehicleForEdit.model} ({selectedVehicleForEdit.year})
+                    {selectedVehicleForEdit.brand}{" "}
+                    {selectedVehicleForEdit.model} (
+                    {selectedVehicleForEdit.year})
                   </p>
                 </div>
-                <button onClick={closeEditModal} className="p-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 rounded-xl transition cursor-pointer">
+                <button
+                  onClick={closeEditModal}
+                  className="p-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 rounded-xl transition cursor-pointer"
+                >
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -819,31 +867,54 @@ const MyVehicles = () => {
               {/* Body */}
               <div className="p-5 space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Price Per Day (₹)</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Price Per Day (₹)
+                  </label>
                   <input
                     type="number"
                     value={editFormData.pricePerDay}
-                    onChange={(e) => setEditFormData({...editFormData, pricePerDay: e.target.value})}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        pricePerDay: e.target.value,
+                      })
+                    }
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-zinc-200"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Amenities / Features</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Amenities / Features
+                  </label>
                   <input
                     type="text"
                     value={editFormData.features}
-                    onChange={(e) => setEditFormData({...editFormData, features: e.target.value})}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        features: e.target.value,
+                      })
+                    }
                     placeholder="e.g. GPS, Leather seats, Bluetooth"
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-zinc-200"
                   />
-                  <span className="text-[10px] text-zinc-500 mt-1 block">Comma separated list</span>
+                  <span className="text-[10px] text-zinc-500 mt-1 block">
+                    Comma separated list
+                  </span>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Odometer (km)</label>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Odometer (km)
+                  </label>
                   <input
                     type="number"
                     value={editFormData.odometer}
-                    onChange={(e) => setEditFormData({...editFormData, odometer: e.target.value})}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        odometer: e.target.value,
+                      })
+                    }
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-zinc-200"
                   />
                 </div>
@@ -851,7 +922,10 @@ const MyVehicles = () => {
 
               {/* Footer */}
               <div className="p-5 border-t border-zinc-800/80 bg-zinc-950/50 flex justify-end gap-3">
-                <button onClick={closeEditModal} className="px-5 py-2.5 text-sm font-semibold text-zinc-300 hover:text-white transition cursor-pointer">
+                <button
+                  onClick={closeEditModal}
+                  className="px-5 py-2.5 text-sm font-semibold text-zinc-300 hover:text-white transition cursor-pointer"
+                >
                   Cancel
                 </button>
                 <button
@@ -859,7 +933,15 @@ const MyVehicles = () => {
                   disabled={editLoading}
                   className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold text-sm rounded-xl shadow-lg shadow-blue-600/20 transition cursor-pointer"
                 >
-                  {editLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : <><CheckCircle className="w-4 h-4" /> Save Changes</>}
+                  {editLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4" /> Save Changes
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -873,7 +955,9 @@ const MyVehicles = () => {
               <div className="w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center mx-auto mb-4 border border-rose-500/20">
                 <Trash2 className="w-6 h-6 text-rose-400" />
               </div>
-              <h3 className="text-lg font-bold text-zinc-100 mb-2">Delete Vehicle</h3>
+              <h3 className="text-lg font-bold text-zinc-100 mb-2">
+                Delete Vehicle
+              </h3>
               <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
                 Are you sure you want to delete{" "}
                 <span className="font-bold text-zinc-200">

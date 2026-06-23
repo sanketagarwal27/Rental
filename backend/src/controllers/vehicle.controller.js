@@ -34,7 +34,8 @@ export const updateVehicleDetails = asyncHandler(async (req, res) => {
     vehicle.features = featuresList;
   }
   if (odometer !== undefined) {
-    vehicle.odometer = parseInt(odometer);
+    const parsedOdo = parseInt(odometer);
+    vehicle.odometer = isNaN(parsedOdo) ? undefined : parsedOdo;
   }
 
   await vehicle.save();
