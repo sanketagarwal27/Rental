@@ -79,10 +79,10 @@ const VehicleSchema = new Schema(
       sparse: true,
       uppercase: true,
       trim: true,
-      validate: {
-        validator: (v) => vinValidate(v),
-        message: "Invalid VIN or Chassis Number",
-      },
+      // validate: {
+      //   validator: (v) => vinValidate(v),
+      //   message: "Invalid VIN or Chassis Number",
+      // },
     },
     licensePlate: {
       type: String,

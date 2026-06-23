@@ -188,6 +188,7 @@ export const uploadVehicle = asyncHandler(async (req, res) => {
   }
 
   // Check unique fields (excluding the current vehicle itself if updating)
+  /*
   if (licensePlate && issuingState) {
     const query = {
       licensePlate: licensePlate.toUpperCase(),
@@ -221,6 +222,7 @@ export const uploadVehicle = asyncHandler(async (req, res) => {
       );
     }
   }
+  */
 
   // Parse list of features if passed as a JSON string or comma-separated string
   let featuresList = [];
