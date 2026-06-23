@@ -5,14 +5,15 @@ import ApiError from "../utils/ApiError.js";
 export const cleanupDates = () => {
   const performCleanup = async () => {
     try {
-      const today = new Date();
-      today.setUTCHours(0, 0, 0, 0);
+      const istDateString = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+      const cutoffDate = new Date(`${istDateString}T00:00:00.000Z`);
+      
       await Vehicle.updateMany(
         {},
         {
           $pull: {
             unavailableDates: {
-              $lt: today,
+              $lt: cutoffDate,
             },
           },
         },

@@ -41,10 +41,11 @@ const formatDate = (d) =>
   new Date(d).toLocaleDateString("en-GB");
 
 const getRefundLabel = (startDate) => {
-  const now = new Date();
-  now.setUTCHours(0, 0, 0, 0);
-  const start = new Date(startDate);
-  start.setUTCHours(0, 0, 0, 0);
+  const istNowString = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+  const now = new Date(`${istNowString}T00:00:00.000Z`);
+  
+  const istStartString = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(startDate));
+  const start = new Date(`${istStartString}T00:00:00.000Z`);
   const days = Math.ceil((start - now) / 86400000);
   if (days >= 7)
     return {

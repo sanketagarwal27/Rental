@@ -717,13 +717,13 @@ export const createPickupOrder = asyncHandler(async (req, res) => {
     );
   }
 
-  // Date check to enforce pickup is only allowed from midnight (UTC) of start date
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  const tripStartDate = new Date(booking.startDate);
-  tripStartDate.setUTCHours(0, 0, 0, 0);
+  // Date check to enforce pickup is only allowed from midnight (IST) of start date
+  const getISTDateString = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(d));
+  
+  const todayIST = getISTDateString(new Date());
+  const tripStartIST = getISTDateString(booking.startDate);
 
-  if (today < tripStartDate) {
+  if (todayIST < tripStartIST) {
     throw new ApiError(
       400,
       "You cannot pick up the vehicle before the trip start date.",
@@ -792,13 +792,13 @@ export const markPickedUp = asyncHandler(async (req, res) => {
     );
   }
 
-  // Date check to enforce pickup is only allowed from midnight (UTC) of start date
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  const tripStartDate = new Date(booking.startDate);
-  tripStartDate.setUTCHours(0, 0, 0, 0);
+  // Date check to enforce pickup is only allowed from midnight (IST) of start date
+  const getISTDateString = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(d));
+  
+  const todayIST = getISTDateString(new Date());
+  const tripStartIST = getISTDateString(booking.startDate);
 
-  if (today < tripStartDate) {
+  if (todayIST < tripStartIST) {
     throw new ApiError(
       400,
       "You cannot pick up the vehicle before the trip start date.",

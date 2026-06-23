@@ -232,7 +232,7 @@ const RenterTripsTable = ({
               {/* Action buttons — Confirmed trips */}
               {bk.status === "Confirmed" && (
                 <div className="ml-14 flex flex-col items-start gap-2">
-                  {new Date().setUTCHours(0, 0, 0, 0) >= new Date(bk.startDate).setUTCHours(0, 0, 0, 0) ? (
+                  {new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date()) >= new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(bk.startDate)) ? (
                     <button
                       onClick={() =>
                         onPickedUp(bk._id, bk.totalPrice - bk.amountPaid)
