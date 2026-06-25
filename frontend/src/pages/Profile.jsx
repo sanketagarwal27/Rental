@@ -471,11 +471,17 @@ const Profile = () => {
 
             {/* Verification Settings */}
             <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-6 backdrop-blur-md">
-              <div className="flex items-center gap-3 mb-6">
+              <div className="flex items-center gap-3 mb-2">
                 <ShieldCheck className="w-5 h-5 text-blue-500" />
                 <h3 className="text-lg font-bold text-zinc-100">
                   Identity Verification
                 </h3>
+              </div>
+              <div className="mb-6 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                <p className="text-xs text-blue-400 flex items-center gap-2 font-medium">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  Demo Mode: Email and phone verifications are automatically set to verified for demonstration purposes to avoid unnecessary API calls.
+                </p>
               </div>
 
               <div className="space-y-4">
@@ -495,22 +501,9 @@ const Profile = () => {
                     </div>
                   </div>
 
-                  {user?.isVerifiedEmail ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl self-start sm:self-auto">
-                      <Check className="w-3.5 h-3.5" /> Verified
-                    </span>
-                  ) : (
-                    <button
-                      onClick={handleVerifyEmail}
-                      disabled={verifyLoading}
-                      className="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-md shadow-blue-600/10 self-start sm:self-auto disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
-                    >
-                      {verifyLoading && (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      )}{" "}
-                      Verify Email
-                    </button>
-                  )}
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl self-start sm:self-auto cursor-default">
+                    <Check className="w-3.5 h-3.5" /> Verified
+                  </span>
                 </div>
               </div>
             </div>

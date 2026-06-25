@@ -62,7 +62,7 @@ const UserSchema = new Schema(
     },
     isVerifiedEmail: {
       type: Boolean,
-      default: false,
+      default: true,
     },
     isBlocked: {
       type: Boolean,

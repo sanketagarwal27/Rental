@@ -298,10 +298,12 @@ export const sendEmailVerification = asyncHandler(async (req, res) => {
     If you did not request this, please ignore this email.
   `;
 
-  await sendEmail({
+  sendEmail({
     email: user.email,
     subject: "Verify Your Email - RentWheels",
     message,
+  }).catch(err => {
+    console.error("Failed to send verification email: ", err);
   });
 
   res
@@ -497,16 +499,14 @@ export const forgotPassword = asyncHandler(async (req, res) => {
 
     This link expires in 5 minutes.
   `;
-  try {
-    await sendEmail({
-      email: user.email,
-      subject: "Password Reset",
-      message: message,
-    });
-  } catch (err) {
+  sendEmail({
+    email: user.email,
+    subject: "Password Reset",
+    message: message,
+  }).catch((err) => {
     // Don't expose email sending errors
     console.error("Error sending password reset email:", err);
-  }
+  });
   res.status(200).json(new ApiResponse(200, {}, genericMessage));
 });
 

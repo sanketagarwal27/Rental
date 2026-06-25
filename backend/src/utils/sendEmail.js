@@ -7,6 +7,7 @@ const getTransporter = () => {
   if (!transporter) {
     transporter = nodemailer.createTransport({
       service: "gmail",
+      pool: true,
       auth: {
         user: process.env.EMAIL,
         pass: process.env.EMAIL_PASS,
